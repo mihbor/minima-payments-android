@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">TestApp</string>
+    <string name="service_name">TestApp-CardService</string>
+    <string name="card_title">Sample Loyalty Card</string>
+</resources>
