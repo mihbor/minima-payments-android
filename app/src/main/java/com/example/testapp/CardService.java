@@ -57,7 +57,8 @@ public class CardService extends HostApduService {
         if(intent.getExtras() != null){
 
             // Get message
-            data = intent.getExtras().getString("address");
+            data = intent.getExtras().getString("data");
+            Log.i(TAG, "Data: " + data);
         }
 
         return START_NOT_STICKY;

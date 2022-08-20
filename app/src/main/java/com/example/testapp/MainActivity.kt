@@ -27,6 +27,8 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.math.BigDecimal
+import java.math.BigDecimal.ONE
+import java.math.BigDecimal.ZERO
 
 
 // Recommend NfcAdapter flags for reading from other Android devices. Indicates that this
@@ -45,7 +47,7 @@ class MainActivity : ComponentActivity(),
 
   var address by mutableStateOf("")
   var tokenId by mutableStateOf("0x00")
-  var amount by mutableStateOf(BigDecimal.ONE)
+  var amount by mutableStateOf(ZERO)
 
   var cardReader: CardReader = CardReader(this)
 
@@ -55,7 +57,7 @@ class MainActivity : ComponentActivity(),
       TestAppTheme {
         // A surface container using the 'background' color from the theme
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colors.background) {
-          View(address, isReaderModeOn, { scope.launch { startEmitting(it) } }, this::enableReaderMode )
+          View(address, amount, isReaderModeOn, { scope.launch { emitAmount(it) } }, this::enableReaderMode )
         }
       }
     }
@@ -90,7 +92,7 @@ class MainActivity : ComponentActivity(),
 
   fun sendDataToService(data: String) {
     val intent = Intent(applicationContext, CardService::class.java)
-    intent.putExtra("address", data)
+    intent.putExtra("data", data)
     applicationContext.startService(intent)
   }
 //
@@ -111,6 +113,7 @@ class MainActivity : ComponentActivity(),
     Log.i(TAG, "Enabling reader mode")
     Toast.makeText(this, "Enabling reader mode", Toast.LENGTH_LONG).show()
     address = ""
+    amount = ZERO
 
     val activity: Activity = this
     val nfc = NfcAdapter.getDefaultAdapter(activity)
@@ -131,6 +134,13 @@ class MainActivity : ComponentActivity(),
     address = getAddress()
     sendDataToService("$address;0x00;${amount.toPlainString()}")
     isReaderModeOn = false
+  }
+
+  private suspend fun emitAmount(amount: BigDecimal) {
+    Log.i(TAG, "Update amount")
+    this.amount = amount
+    if (isReaderModeOn) startEmitting(amount)
+    else sendDataToService("$address;0x00;${amount.toPlainString()}")
   }
 
   override fun onDataReceived(data: String) {
@@ -163,11 +173,12 @@ class MainActivity : ComponentActivity(),
 @Composable
 fun OutlinedNumberField(value: BigDecimal, enabled: Boolean, setValue: (BigDecimal) -> Unit) {
   var text by remember { mutableStateOf(value.toPlainString()) }
-  value.takeUnless { it == text.toBigDecimalOrNull() } ?.let { text = it.toPlainString() }
+  value.takeUnless { it == text.toBigDecimalOrNull() || it == ZERO && text.isEmpty()} ?.let { text = it.toPlainString() }
   OutlinedTextField(
     value = text,
     onValueChange = {
-      it.toBigDecimalOrNull()?.let{ setValue(it) }
+      if (it.isEmpty()) setValue(ZERO)
+      else it.toBigDecimalOrNull()?.let{ setValue(it) }
       text = it
     },
     enabled = enabled,
@@ -176,7 +187,7 @@ fun OutlinedNumberField(value: BigDecimal, enabled: Boolean, setValue: (BigDecim
 }
 
 @Composable
-fun View(address: String, isReaderMode: Boolean, startEmitting: (BigDecimal) -> Unit, stopEmitting: () -> Unit) {
+fun View(address: String, amount: BigDecimal, isReaderMode: Boolean, startEmitting: (BigDecimal) -> Unit, stopEmitting: () -> Unit) {
   val scope = rememberCoroutineScope()
 
   var uid by remember { mutableStateOf("") }
@@ -213,13 +224,12 @@ fun View(address: String, isReaderMode: Boolean, startEmitting: (BigDecimal) -> 
         Text("Update")
       }
     }
-    if (inited) InitedView(address, isReaderMode, startEmitting, stopEmitting)
+    if (inited) InitedView(address, amount, setAmount = startEmitting, isReaderMode, startEmitting, stopEmitting)
   }
 }
 
 @Composable
-fun InitedView(address: String, isReaderMode: Boolean, startEmitting: (BigDecimal) -> Unit, stopEmitting: () -> Unit) {
-  var amount by remember { mutableStateOf(BigDecimal.ZERO) }
+fun InitedView(address: String, amount: BigDecimal, setAmount: (BigDecimal) -> Unit, isReaderMode: Boolean, startEmitting: (BigDecimal) -> Unit, stopEmitting: () -> Unit) {
   Column {
     Row {
       Text("Reader")
@@ -227,7 +237,7 @@ fun InitedView(address: String, isReaderMode: Boolean, startEmitting: (BigDecima
       Text("Emitter")
     }
     OutlinedTextField(address, {}, enabled = !isReaderMode)
-    OutlinedNumberField(amount, !isReaderMode) { amount = it }
+    OutlinedNumberField(amount, !isReaderMode, setAmount)
   }
 }
 
@@ -242,7 +252,7 @@ fun Messages(messages: List<NdefMessage>) {
 @Composable
 fun DefaultPreview() {
   TestAppTheme {
-    View("test", false, {}, {})
+    View("test", ONE, false, {}, {})
   }
 }
 
@@ -250,7 +260,7 @@ fun DefaultPreview() {
 @Composable
 fun InitedViewConsumer() {
   TestAppTheme {
-    InitedView(address = "", isReaderMode = true, {}, {})
+    InitedView(address = "", amount = ZERO, {}, isReaderMode = true, {}, {})
   }
 }
 
@@ -258,6 +268,6 @@ fun InitedViewConsumer() {
 @Composable
 fun InitedViewProducer() {
   TestAppTheme {
-    InitedView(address = "0x1234567890", isReaderMode = false, {}, {})
+    InitedView(address = "0x1234567890", amount = ONE, {}, isReaderMode = false, {}, {})
   }
 }
