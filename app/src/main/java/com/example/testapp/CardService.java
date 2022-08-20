@@ -18,9 +18,7 @@ package com.example.testapp;
 
 import android.content.Intent;
 import android.nfc.cardemulation.HostApduService;
-import android.os.Binder;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.util.Log;
 
 import java.util.Arrays;
@@ -49,20 +47,17 @@ public class CardService extends HostApduService {
     // "UNKNOWN" status word sent in response to invalid APDU command (0x0000)
     private static final byte[] UNKNOWN_CMD_SW = HexStringToByteArray("0000");
     private static final byte[] SELECT_APDU = BuildSelectApdu(SAMPLE_LOYALTY_CARD_AID);
-    private String address = "";
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
+    private String data = "";
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
+        Log.i(TAG, "Received start command");
         // Check if intent has extras
         if(intent.getExtras() != null){
 
             // Get message
-            address = intent.getExtras().getString("address");
+            data = intent.getExtras().getString("address");
         }
 
         return START_NOT_STICKY;
@@ -104,8 +99,8 @@ public class CardService extends HostApduService {
         // send the loyalty card account number, followed by a SELECT_OK status trailer (0x9000).
         if (Arrays.equals(SELECT_APDU, commandApdu)) {
 //            String account = AccountStorage.GetAccount(this);
-            byte[] accountBytes = address.getBytes();
-            Log.w(TAG, "Sending account number: " + address);
+            byte[] accountBytes = data.getBytes();
+            Log.w(TAG, "Sending data: " + data);
             return ConcatArrays(accountBytes, SELECT_OK_SW);
         } else {
             return UNKNOWN_CMD_SW;

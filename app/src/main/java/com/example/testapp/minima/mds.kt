@@ -10,7 +10,6 @@ import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
@@ -58,7 +57,7 @@ object MDS {
 
   val client = HttpClient(OkHttp) {
     install(HttpTimeout) {
-      requestTimeoutMillis = 30000
+      requestTimeoutMillis = 40000
       socketTimeoutMillis = 60000
     }
     engine {
@@ -208,9 +207,10 @@ suspend fun httpPostAsync(theUrl: String, params: String): JsonElement? {
   MDS.log("POST_RPC:$theUrl PARAMS:$params")
 
   val response = client.post(theUrl) {
-//    headers {
+    headers {
+      append(HttpHeaders.Connection, "close")
 //      append(HttpHeaders.ContentType, "text/plain; charset=UTF-8")
-//    }
+    }
     setBody(encodeURIComponent(params))
   }
   return if (response.status.isSuccess()) {
@@ -257,9 +257,10 @@ suspend fun httpPostAsyncPoll(theUrl: String, params: String, callback: Callback
   
   try {
     val response = client.post(theUrl) {
-//    headers {
+      headers {
+        append(HttpHeaders.Connection, "close")
 //      append(HttpHeaders.ContentType, "text/plain; charset=UTF-8")
-//    }
+      }
       setBody(encodeURIComponent(params))
     }
     if (response.status.isSuccess()) {

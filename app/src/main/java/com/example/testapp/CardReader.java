@@ -30,7 +30,7 @@ import java.util.Arrays;
  * Reader mode can be invoked by calling NfcAdapter
  */
 public class CardReader implements NfcAdapter.ReaderCallback {
-    private static final String TAG = "LoyaltyCardReader";
+    private static final String TAG = "CardReader";
     // AID for our loyalty card service.
     private static final String SAMPLE_LOYALTY_CARD_AID = "F222222222";
     // ISO-DEP command HEADER for selecting an AID.
@@ -41,14 +41,14 @@ public class CardReader implements NfcAdapter.ReaderCallback {
 
     // Weak reference to prevent retain loop. mAccountCallback is responsible for exiting
     // foreground mode before it becomes invalid (e.g. during onPause() or onStop()).
-    private WeakReference<AccountCallback> mAccountCallback;
+    private WeakReference<DataCallback> dataCallback;
 
-    public interface AccountCallback {
-        public void onAccountReceived(String account);
+    public interface DataCallback {
+        void onDataReceived(String account);
     }
 
-    public CardReader(AccountCallback accountCallback) {
-        mAccountCallback = new WeakReference<>(accountCallback);
+    public CardReader(DataCallback dataCallback) {
+        this.dataCallback = new WeakReference<>(dataCallback);
     }
 
     /**
@@ -86,10 +86,10 @@ public class CardReader implements NfcAdapter.ReaderCallback {
                 byte[] payload = Arrays.copyOf(result, resultLength-2);
                 if (Arrays.equals(SELECT_OK_SW, statusWord)) {
                     // The remote NFC device will immediately respond with its stored account number
-                    String address = new String(payload, "UTF-8");
-                    Log.i(TAG, "Received: " + address);
+                    String data = new String(payload, "UTF-8");
+                    Log.i(TAG, "Received: " + data);
                     // Inform CardReaderFragment of received account number
-                    mAccountCallback.get().onAccountReceived(address);
+                    dataCallback.get().onDataReceived(data);
                 }
             } catch (IOException e) {
                 Log.e(TAG, "Error communicating with card: " + e);

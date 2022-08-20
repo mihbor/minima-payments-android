@@ -10,10 +10,12 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -24,6 +26,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.math.BigDecimal
 
 
 // Recommend NfcAdapter flags for reading from other Android devices. Indicates that this
@@ -35,18 +38,16 @@ const val TAG = "MainActivity"
 
 val scope = MainScope()
 
-class MainActivity : ComponentActivity(),  CardReader.AccountCallback{
+class MainActivity : ComponentActivity(),
+  CardReader.DataCallback {
 //  val nfcMessages = mutableStateListOf<NdefMessage>()
   var isReaderModeOn by mutableStateOf(true)
 
   var address by mutableStateOf("")
+  var tokenId by mutableStateOf("0x00")
+  var amount by mutableStateOf(BigDecimal.ONE)
 
   var cardReader: CardReader = CardReader(this)
-
-  private suspend fun toggleReaderMode(isOn: Boolean) {
-    if (isOn) enableReaderMode() else disableReaderMode()
-    isReaderModeOn = isOn
-  }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -54,7 +55,7 @@ class MainActivity : ComponentActivity(),  CardReader.AccountCallback{
       TestAppTheme {
         // A surface container using the 'background' color from the theme
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colors.background) {
-          View(address, isReaderModeOn, this::toggleReaderMode)
+          View(address, isReaderModeOn, { scope.launch { startEmitting(it) } }, this::enableReaderMode )
         }
       }
     }
@@ -75,21 +76,21 @@ class MainActivity : ComponentActivity(),  CardReader.AccountCallback{
 //    }
   }
 
-  override fun onPause() {
-    super.onPause()
-    scope.launch {
-      disableReaderMode()
-    }
-  }
+//  override fun onPause() {
+//    super.onPause()
+//    scope.launch {
+//      startEmitting()
+//    }
+//  }
+//
+//  override fun onResume() {
+//    super.onResume()
+//    enableReaderMode()
+//  }
 
-  override fun onResume() {
-    super.onResume()
-    enableReaderMode()
-  }
-
-  fun sendDataToService(address: String) {
+  fun sendDataToService(data: String) {
     val intent = Intent(applicationContext, CardService::class.java)
-    intent.putExtra("address", address)
+    intent.putExtra("address", data)
     applicationContext.startService(intent)
   }
 //
@@ -119,20 +120,25 @@ class MainActivity : ComponentActivity(),  CardReader.AccountCallback{
       READER_FLAGS,
       null
     )
+    isReaderModeOn = true
   }
 
-  private suspend fun disableReaderMode() {
+  private suspend fun startEmitting(amount: BigDecimal) {
     Log.i(TAG, "Disabling reader mode")
     Toast.makeText(this, "Disabling reader mode", Toast.LENGTH_LONG).show()
     val activity: Activity = this
     NfcAdapter.getDefaultAdapter(activity)?.disableReaderMode(activity)
     address = getAddress()
-    sendDataToService(address)
+    sendDataToService("$address;0x00;${amount.toPlainString()}")
+    isReaderModeOn = false
   }
 
-  override fun onAccountReceived(account: String) {
-    Log.i(TAG, "onAccountReceived $account")
-    this.address = account
+  override fun onDataReceived(data: String) {
+    Log.i(TAG, "data received $data")
+    val splits = data.split(";")
+    this.address = splits[0]
+    if (splits.size > 1) this.tokenId = splits[1]
+    if (splits.size > 2) this.amount = splits[2].toBigDecimal()
   }
 }
 
@@ -155,17 +161,33 @@ class MainActivity : ComponentActivity(),  CardReader.AccountCallback{
 //}
 
 @Composable
-fun View(address: String, isReaderMode: Boolean, setReaderMode: suspend (Boolean) -> Unit) {
-  var uid by remember{ mutableStateOf("")}
+fun OutlinedNumberField(value: BigDecimal, enabled: Boolean, setValue: (BigDecimal) -> Unit) {
+  var text by remember { mutableStateOf(value.toPlainString()) }
+  value.takeUnless { it == text.toBigDecimalOrNull() } ?.let { text = it.toPlainString() }
+  OutlinedTextField(
+    value = text,
+    onValueChange = {
+      it.toBigDecimalOrNull()?.let{ setValue(it) }
+      text = it
+    },
+    enabled = enabled,
+    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+  )
+}
+
+@Composable
+fun View(address: String, isReaderMode: Boolean, startEmitting: (BigDecimal) -> Unit, stopEmitting: () -> Unit) {
+  val scope = rememberCoroutineScope()
+
+  var uid by remember { mutableStateOf("") }
   var inited by remember { mutableStateOf(false) }
-  val composableScope = rememberCoroutineScope()
 
   Column {
     Row {
       Text("MiniDApp UID:")
     }
     Row {
-      TextField(value = uid,
+      OutlinedTextField(value = uid,
         modifier = Modifier
           .width(400.dp)
           .padding(1.dp),
@@ -191,20 +213,22 @@ fun View(address: String, isReaderMode: Boolean, setReaderMode: suspend (Boolean
         Text("Update")
       }
     }
-    if (inited) {
-      Row {
-        Text("Producer")
-        Switch(checked = isReaderMode, onCheckedChange = {
-          composableScope.launch {
-            setReaderMode(it)
-          }
-        })
-        Text("Consumer")
-      }
-      Text(address)
-    }
+    if (inited) InitedView(address, isReaderMode, startEmitting, stopEmitting)
   }
-//  Messages(messages)
+}
+
+@Composable
+fun InitedView(address: String, isReaderMode: Boolean, startEmitting: (BigDecimal) -> Unit, stopEmitting: () -> Unit) {
+  var amount by remember { mutableStateOf(BigDecimal.ZERO) }
+  Column {
+    Row {
+      Text("Reader")
+      Switch(checked = !isReaderMode, onCheckedChange = { if (isReaderMode) startEmitting(amount) else stopEmitting() })
+      Text("Emitter")
+    }
+    OutlinedTextField(address, {}, enabled = !isReaderMode)
+    OutlinedNumberField(amount, !isReaderMode) { amount = it }
+  }
 }
 
 @Composable
@@ -218,6 +242,22 @@ fun Messages(messages: List<NdefMessage>) {
 @Composable
 fun DefaultPreview() {
   TestAppTheme {
-    View("test",false, {})
+    View("test", false, {}, {})
+  }
+}
+
+@Preview
+@Composable
+fun InitedViewConsumer() {
+  TestAppTheme {
+    InitedView(address = "", isReaderMode = true, {}, {})
+  }
+}
+
+@Preview
+@Composable
+fun InitedViewProducer() {
+  TestAppTheme {
+    InitedView(address = "0x1234567890", isReaderMode = false, {}, {})
   }
 }

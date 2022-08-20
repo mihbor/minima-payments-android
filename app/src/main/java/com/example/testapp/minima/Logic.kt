@@ -24,5 +24,6 @@ suspend fun getAddress(): String {
     return ""
   }
   Log.i(TAG, "getaddress $getaddress")
-  return getaddress!!.jsonObject["response"]!!.jsonObject["miniaddress"]!!.jsonPrimitive.content
+  return if (getaddress == null) getAddress()
+    else getaddress.jsonObject["response"]!!.jsonObject["miniaddress"]!!.jsonPrimitive.content
 }
