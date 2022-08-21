@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity(),
     intent?.data?.let{ uri ->
       val action = uri.path
       uri.getQueryParameter("uid")?.let { init(it, uri.host ?: "localhost", uri.port) }
-      if (action == "/send") {
+      if (action == "/emit") {
         uri.getQueryParameter("address")?.let { address = it }
         uri.getQueryParameter("token")?.let { tokenId = it }
         uri.getQueryParameter("amount")?.toBigDecimalOrNull()?.let{ amount = it }
