@@ -16,7 +16,9 @@ import kotlinx.serialization.json.*
 import java.net.URLEncoder
 import java.security.cert.X509Certificate
 import java.util.*
+import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSession
 import javax.net.ssl.X509TrustManager
 
 private const val TAG = "MDS"
@@ -24,6 +26,7 @@ private const val TAG = "MDS"
 typealias Callback = (suspend (JsonElement) -> Unit)?
 
 val json = Json {
+  ignoreUnknownKeys = true
   serializersModule = bigDecimalHumanReadableSerializerModule
 }
 
@@ -77,6 +80,11 @@ object MDS {
         val sslContext = SSLContext.getInstance("TLS")
         sslContext.init(null, arrayOf(trustManager), null)
         sslSocketFactory(sslContext.socketFactory, trustManager)
+        hostnameVerifier(object : HostnameVerifier {
+          override fun verify(hostname: String?, session: SSLSession?): Boolean {
+            return true
+          }
+        })
       }
     }
   }
@@ -84,15 +92,11 @@ object MDS {
   /**
    * Minima Startup - with the callback function used for all Minima messages
    */
-  suspend fun init(minidappuid: String, host: String = "localhost", port: Int = 9003, callback: Callback = null) {
+  suspend fun init(minidappuid: String, host: String = "localhost", port: Int = 9004, callback: Callback = null) {
     this.minidappuid = minidappuid
     log("Initialising MDS [$minidappuid]")
 
-    val mainport 	= port+1
-    
-    log("MDS FILEHOST  : https://$host:$port/")
-    
-    mainhost 	= "https://$host:$mainport/"
+    mainhost 	= "https://$host:$port/"
     log("MDS MAINHOST : "+ mainhost)
     
     //Store this for poll messages
