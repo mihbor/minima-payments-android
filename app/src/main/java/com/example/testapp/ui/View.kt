@@ -1,33 +1,36 @@
 package com.example.testapp.ui
 
-import android.util.Log
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.testapp.TAG
-import com.example.testapp.minima.balances
-import java.math.BigDecimal
+import com.example.testapp.minima.send
+import com.example.testapp.scope
+import com.example.testapp.ui.theme.TestAppTheme
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
+import kotlinx.coroutines.launch
+import minima.Balance
+import minima.TokenDescriptor
 
-
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun View(
   inited: Boolean,
   uid: String,
   setUid: (String) -> Unit,
+  balances: Map<String, Balance>,
   address: String,
   amount: BigDecimal,
   tokenId: String,
   setTokenId: (String) -> Unit,
   isReaderMode: Boolean,
-  startEmitting: (BigDecimal) -> Unit,
+  setAmount: (BigDecimal) -> Unit,
+  startEmitting: () -> Unit,
   stopEmitting: () -> Unit
 ) {
 
@@ -55,29 +58,67 @@ fun View(
     if (inited) {
       Row {
         Text("Reader")
-        Switch(checked = !isReaderMode, onCheckedChange = { if (isReaderMode) startEmitting(amount) else stopEmitting() })
+        Switch(checked = !isReaderMode, onCheckedChange = { if (isReaderMode) startEmitting() else stopEmitting() })
         Text("Emitter")
       }
-      OutlinedTextField(address, {}, enabled = !isReaderMode)
+      OutlinedTextField(address, {}, enabled = !isReaderMode, modifier = Modifier.fillMaxWidth())
       var expanded by remember { mutableStateOf(false) }
-      Log.i(TAG, "tokenid: $tokenId balance: " + balances.find { it.tokenid == tokenId }?.let { (it.token?.name ?: "Minima") + " [${it.sendable.toPlainString()}]" })
-      OutlinedTextField(
-        value = balances.find { it.tokenid == tokenId }?.let { (it.token?.name ?: "Minima") + " [${it.sendable.toPlainString()}]" } ?: "",
-        {},
-        modifier = Modifier.clickable(onClick = { expanded = !expanded }),
-        readOnly = true
-      )
-      DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-        balances.forEach {
-          DropdownMenuItem(enabled = !isReaderMode && it.sendable > BigDecimal.ZERO, onClick = {
-            setTokenId(it.tokenid)
-          }) {
-            Text(it.token?.name ?: "Minima")
-            Text(" [${it.sendable.toPlainString()}]")
+      ExposedDropdownMenuBox(expanded, { expanded = !expanded }) {
+        OutlinedTextField(
+          value = balances[tokenId]?.let { (it.token?.name ?: "Minima") + " [${it.sendable.toPlainString()}]" } ?: "",
+          {},
+          modifier = Modifier.fillMaxWidth(),
+          readOnly = true,
+          enabled = !isReaderMode,
+          trailingIcon = {
+            ExposedDropdownMenuDefaults.TrailingIcon(
+              expanded = expanded
+            )
+          }
+        )
+        ExposedDropdownMenu(expanded, { expanded = false }) {
+          balances.values.forEach {
+            DropdownMenuItem(enabled = !isReaderMode && it.sendable > ZERO, onClick = {
+              setTokenId(it.tokenid)
+            }) {
+              Text(it.token?.name ?: "Minima")
+              Text(" [${it.sendable.toPlainString()}]")
+            }
           }
         }
       }
-      OutlinedNumberField(amount, !isReaderMode, startEmitting)
+      Row {
+        DecimalNumberField(amount, !isReaderMode, setAmount)
+        Button(enabled = address.isNotBlank() && amount > ZERO && balances[tokenId]?.sendable?.let{ it >= amount } ?: false, onClick = {
+          scope.launch {
+            val success = send(address, amount, tokenId)
+            if (success) setAmount(ZERO)
+          }
+        }) {
+          Text("Send!")
+        }
+      }
     }
+  }
+}
+
+private val previewBalances = listOf(
+  Balance("0x00", null, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, 1),
+  Balance("0x01234567890", TokenDescriptor("test"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, 1),
+).associateBy { it.tokenid }
+
+@Preview(showBackground = true)
+@Composable
+fun ViewConsumer() {
+  TestAppTheme {
+    View(true, "uid123", {}, previewBalances, "", ZERO, "0x00", {}, true, {}, {}, {})
+  }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ViewEmitter() {
+  TestAppTheme {
+    View(true, "uid456", {}, previewBalances, "address", BigDecimal.ONE, "0x01234567890", {}, false, {}, {}, {})
   }
 }

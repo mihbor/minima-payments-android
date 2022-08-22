@@ -4,10 +4,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.text.input.KeyboardType
-import java.math.BigDecimal
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 
 @Composable
-fun OutlinedNumberField(value: BigDecimal, enabled: Boolean, setValue: (BigDecimal) -> Unit) {
+fun DecimalNumberField(value: BigDecimal, enabled: Boolean, setValue: (BigDecimal) -> Unit) {
   var text by remember { mutableStateOf(value.toPlainString()) }
   value.takeUnless { it == text.toBigDecimalOrNull() || it == BigDecimal.ZERO && text.isEmpty()} ?.let { text = it.toPlainString() }
   OutlinedTextField(
@@ -20,4 +21,12 @@ fun OutlinedNumberField(value: BigDecimal, enabled: Boolean, setValue: (BigDecim
     enabled = enabled,
     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
   )
+}
+
+fun String.toBigDecimalOrNull(): BigDecimal? {
+  return try {
+    toBigDecimal()
+  } catch (e: Exception) {
+    null
+  }
 }

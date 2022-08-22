@@ -100,9 +100,9 @@ public class CardService extends HostApduService {
         // send the loyalty card account number, followed by a SELECT_OK status trailer (0x9000).
         if (Arrays.equals(SELECT_APDU, commandApdu)) {
 //            String account = AccountStorage.GetAccount(this);
-            byte[] accountBytes = data.getBytes();
+            byte[] dataBytes = data.getBytes();
             Log.w(TAG, "Sending data: " + data);
-            return ConcatArrays(accountBytes, SELECT_OK_SW);
+            return ConcatArrays(dataBytes, SELECT_OK_SW);
         } else {
             return UNKNOWN_CMD_SW;
         }
@@ -118,8 +118,7 @@ public class CardService extends HostApduService {
      */
     public static byte[] BuildSelectApdu(String aid) {
         // Format: [CLASS | INSTRUCTION | PARAMETER 1 | PARAMETER 2 | LENGTH | DATA]
-        return HexStringToByteArray(SELECT_APDU_HEADER + String.format("%02X",
-                aid.length() / 2) + aid);
+        return HexStringToByteArray(SELECT_APDU_HEADER + String.format("%02X", aid.length() / 2) + aid);
     }
 
     /**

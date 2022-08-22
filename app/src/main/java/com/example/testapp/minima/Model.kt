@@ -17,8 +17,8 @@ data class Balance(
 @Serializable
 data class TokenDescriptor(
   val name: String,
-  val description: String?,
-  val url: String?
+  val description: String? = null,
+  val url: String? = null
 )
 
 @Serializable

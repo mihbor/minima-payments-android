@@ -18,17 +18,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.testapp.minima.getAddress
+import com.example.testapp.minima.balances
 import com.example.testapp.minima.initMDS
 import com.example.testapp.minima.inited
 import com.example.testapp.ui.View
 import com.example.testapp.ui.theme.TestAppTheme
+import com.example.testapp.ui.toBigDecimalOrNull
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
+import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import java.math.BigDecimal
-import java.math.BigDecimal.ONE
-import java.math.BigDecimal.ZERO
 
 
 // Recommend NfcAdapter flags for reading from other Android devices. Indicates that this
@@ -77,7 +77,7 @@ class MainActivity : ComponentActivity(),
       TestAppTheme {
         // A surface container using the 'background' color from the theme
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colors.background) {
-          View(inited, uid, ::init, address, amount, tokenId, { tokenId = it }, isReaderModeOn, { scope.launch { emitAmount(it) } }, this::enableReaderMode )
+          View(inited, uid, ::init, balances.associateBy { it.tokenid }, address, amount, tokenId, { tokenId = it }, isReaderModeOn, ::updateAmount, ::startEmitting, ::enableReaderMode)
         }
       }
     }
@@ -152,17 +152,13 @@ class MainActivity : ComponentActivity(),
     isReaderModeOn = false
     val activity: Activity = this
     NfcAdapter.getDefaultAdapter(activity)?.disableReaderMode(activity)
-    sendDataToService("$address;0x00;${amount.toPlainString()}")
+    sendDataToService("$address;$tokenId;${amount.toPlainString()}")
   }
 
-  private suspend fun emitAmount(amount: BigDecimal) {
+  private fun updateAmount(amount: BigDecimal) {
     Log.i(TAG, "Update amount")
     this.amount = amount
-    if (isReaderModeOn) {
-      address = getAddress()
-      startEmitting()
-    }
-    else sendDataToService("$address;0x00;${amount.toPlainString()}")
+    if (!isReaderModeOn) sendDataToService("$address;$tokenId;${amount.toPlainString()}")
   }
 
   override fun onDataReceived(data: String) {
@@ -196,21 +192,5 @@ class MainActivity : ComponentActivity(),
 fun Messages(messages: List<NdefMessage>) {
   messages.forEach { msg ->
     Text(msg.records.joinToString { it.payload.toString() })
-  }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ViewConsumer() {
-  TestAppTheme {
-    View(true, "uid", {}, "", ZERO, "0x00", {}, true, {}, {})
-  }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ViewEmitter() {
-  TestAppTheme {
-    View(true, "uid", {}, "address", ONE, "0x00", {}, false, {}, {})
   }
 }
