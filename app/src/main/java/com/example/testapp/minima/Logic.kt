@@ -11,14 +11,14 @@ import kotlinx.serialization.json.*
 import minima.Balance
 import minima.Coin
 import minima.TokenDescriptor
-import kotlin.random.Random
+import java.security.SecureRandom
 
 var inited by mutableStateOf(false)
 val balances = mutableStateListOf<Balance>()
 
 data class Output(val address: String, val amount: BigDecimal, val token: String)
 
-fun newTxId() = Random.nextInt(1_000_000_000)
+fun newTxId() = SecureRandom().nextInt(1_000_000_000)
 
 suspend fun initMDS(uid: String, host: String = "localhost", port: Int = 9004) {
   inited = false
@@ -117,9 +117,12 @@ suspend fun send(toAddress: String, amount: BigDecimal, tokenId: String): Boolea
     "txnpost id:$txnId auto:true;" +
     "txndelete id:$txnId;"
 
-  val result = MDS.cmd(txncreator)?.jsonArray
-  val txnpost = result?.find{it.jsonObject["command"]?.jsonPrimitive?.content == "txnpost"}
+  val result = MDS.cmd(txncreator)
+  val txnpost = (result as? JsonArray)?.find{it.jsonObject["command"]?.jsonPrimitive?.content == "txnpost"}
+    ?: (result as? JsonArray)?.last()
+    ?: result?.jsonObject
   val status = txnpost?.let{ it.jsonObject["status"]?.jsonPrimitive?.booleanOrNull} ?: false
-  Log.i(TAG, "send: $status")
+  val message = txnpost?.let{ it.jsonObject["message"]?.jsonPrimitive?.content}
+  Log.i(TAG, "send status: $status message: $message")
   return status
 }

@@ -1,9 +1,11 @@
 package com.example.testapp.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -89,10 +91,14 @@ fun View(
       }
       Row {
         DecimalNumberField(amount, !isReaderMode, setAmount)
+        val context = LocalContext.current
         Button(enabled = address.isNotBlank() && amount > ZERO && balances[tokenId]?.sendable?.let{ it >= amount } ?: false, onClick = {
           scope.launch {
             val success = send(address, amount, tokenId)
-            if (success) setAmount(ZERO)
+            Toast.makeText(context, "Sending result: $success", Toast.LENGTH_LONG).show()
+            if (success) {
+              setAmount(ZERO)
+            }
           }
         }) {
           Text("Send!")
