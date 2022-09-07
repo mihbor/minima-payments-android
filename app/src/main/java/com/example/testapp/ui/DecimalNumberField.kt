@@ -8,14 +8,32 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 
 @Composable
-fun DecimalNumberField(value: BigDecimal, enabled: Boolean, setValue: (BigDecimal) -> Unit) {
-  var text by remember { mutableStateOf(value.toPlainString()) }
-  value.takeUnless { it == text.toBigDecimalOrNull() || it == BigDecimal.ZERO && text.isEmpty()} ?.let { text = it.toPlainString() }
+fun DecimalNumberField(
+  value: BigDecimal?,
+  min: BigDecimal? = null,
+  max: BigDecimal? = null,
+  enabled: Boolean = true,
+  setValue: (BigDecimal?) -> Unit = {}
+) {
+  var text by remember { mutableStateOf(value?.toString() ?: "") }
+  var isValid by remember { mutableStateOf(value?.isBetween(min, max) ?: false) }
+  value.takeUnless { it == text.toBigDecimalOrNull() || it == BigDecimal.ZERO && text.isEmpty()}
+    ?.let {
+      text = it.toPlainString()
+      isValid = true
+    }
   OutlinedTextField(
     value = text,
     onValueChange = {
-      if (it.isEmpty()) setValue(BigDecimal.ZERO)
-      else it.toBigDecimalOrNull()?.let{ setValue(it) }
+      if (it.isEmpty()) {
+        setValue(min?.takeIf { it > BigDecimal.ZERO } ?: BigDecimal.ZERO)
+        isValid = false
+      } else it.toBigDecimalOrNull()
+        ?.takeIf { it.isBetween(min, max) }
+        ?.let {
+          setValue(it)
+          isValid = true
+        }.also { if(it == null) isValid = false }
       text = it
     },
     enabled = enabled,
@@ -30,3 +48,5 @@ fun String.toBigDecimalOrNull(): BigDecimal? {
     null
   }
 }
+
+fun BigDecimal.isBetween(min: BigDecimal? = null, max: BigDecimal? = null) = min?.let{ it <= this } ?: true && max?.let{ it >= this } ?: true

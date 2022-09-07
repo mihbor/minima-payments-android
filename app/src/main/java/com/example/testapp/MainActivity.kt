@@ -18,9 +18,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.example.testapp.minima.balances
-import com.example.testapp.minima.initMDS
-import com.example.testapp.minima.inited
 import com.example.testapp.ui.View
 import com.example.testapp.ui.theme.TestAppTheme
 import com.example.testapp.ui.toBigDecimalOrNull
@@ -155,10 +152,10 @@ class MainActivity : ComponentActivity(),
     sendDataToService("$address;$tokenId;${amount.toPlainString()}")
   }
 
-  private fun updateAmount(amount: BigDecimal) {
+  private fun updateAmount(amount: BigDecimal?) {
     Log.i(TAG, "Update amount")
-    this.amount = amount
-    if (!isReaderModeOn) sendDataToService("$address;$tokenId;${amount.toPlainString()}")
+    this.amount = amount ?: ZERO
+    if (!isReaderModeOn) sendDataToService("$address;$tokenId;${this.amount.toPlainString()}")
   }
 
   override fun onDataReceived(data: String) {

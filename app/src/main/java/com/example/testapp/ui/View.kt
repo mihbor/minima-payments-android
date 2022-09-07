@@ -10,8 +10,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.testapp.minima.send
 import com.example.testapp.scope
+import com.example.testapp.send
 import com.example.testapp.ui.theme.TestAppTheme
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
@@ -31,7 +31,7 @@ fun View(
   tokenId: String,
   setTokenId: (String) -> Unit,
   isReaderMode: Boolean,
-  setAmount: (BigDecimal) -> Unit,
+  setAmount: (BigDecimal?) -> Unit,
   startEmitting: () -> Unit,
   stopEmitting: () -> Unit
 ) {
@@ -59,9 +59,9 @@ fun View(
     }
     if (inited) {
       Row {
-        Text("Reader")
+        Text("Scan")
         Switch(checked = !isReaderMode, onCheckedChange = { if (isReaderMode) startEmitting() else stopEmitting() })
-        Text("Emitter")
+        Text("Emit")
       }
       OutlinedTextField(address, {}, enabled = !isReaderMode, modifier = Modifier.fillMaxWidth())
       var expanded by remember { mutableStateOf(false) }
@@ -90,19 +90,24 @@ fun View(
         }
       }
       Row {
-        DecimalNumberField(amount, !isReaderMode, setAmount)
-        val context = LocalContext.current
-        Button(enabled = address.isNotBlank() && amount > ZERO && balances[tokenId]?.sendable?.let{ it >= amount } ?: false, onClick = {
-          scope.launch {
-            val success = send(address, amount, tokenId)
-            Toast.makeText(context, "Sending result: $success", Toast.LENGTH_LONG).show()
-            if (success) {
-              setAmount(ZERO)
+        DecimalNumberField(amount, enabled = !isReaderMode, setValue = setAmount)
+        if (isReaderMode) {
+          val context = LocalContext.current
+          Button(enabled = address.isNotBlank() && amount > ZERO && balances[tokenId]?.sendable?.let{ it >= amount } ?: false, onClick = {
+            scope.launch {
+              val success = send(address, amount, tokenId)
+              Toast.makeText(context, "Sending result: $success", Toast.LENGTH_LONG).show()
+              if (success) {
+                setAmount(ZERO)
+              }
             }
+          }) {
+            Text("Send!")
           }
-        }) {
-          Text("Send!")
         }
+      }
+      Row {
+        ChannelListing()
       }
     }
   }
