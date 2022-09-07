@@ -5,6 +5,7 @@ import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.sp
 import com.example.testapp.*
 import com.example.testapp.ui.theme.TestAppTheme
 import kotlinx.coroutines.launch
@@ -29,14 +30,15 @@ fun Settlement(channel: ChannelState, blockNumber: Int, eltooScriptCoins: List<C
       },
       enabled = !settlementTriggering
     ) {
-      Text("Trigger settlement!")
+      Text("Trigger settlement!", fontSize = 10.sp)
     }
   }
   if (eltooScriptCoins.isNotEmpty()) {
     eltooScriptCoins.forEach {
 //      Br()
       Text("[${it.tokenid}] token eltoo coin: ${it.tokenamount?.toPlainString() ?: it.amount.toPlainString()} timelock ${
-        (it.created.toInt() + channel.timeLock - blockNumber).takeIf { it > 0 }?.let { "ends in $it blocks" } ?: "ended"}"
+        (it.created.toInt() + channel.timeLock - blockNumber).takeIf { it > 0 }?.let { "ends in $it blocks" } ?: "ended"}",
+        fontSize = 8.sp
       )
     }
     if (channel.status == "TRIGGERED" && channel.sequenceNumber > 0) {
@@ -51,7 +53,7 @@ fun Settlement(channel: ChannelState, blockNumber: Int, eltooScriptCoins: List<C
         },
         enabled = !updatePosting
       ) {
-        Text("Post latest update")
+        Text("Post latest update", fontSize = 10.sp)
       }
     }
     if (channel.status in listOf("TRIGGERED", "UPDATED")) {
@@ -65,7 +67,7 @@ fun Settlement(channel: ChannelState, blockNumber: Int, eltooScriptCoins: List<C
           }
         }
       ) {
-        Text("Complete settlement!")
+        Text("Complete settlement!", fontSize = 10.sp)
       }
     }
   }

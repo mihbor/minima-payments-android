@@ -3,13 +3,17 @@ package com.example.testapp.ui
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.sp
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 
 @Composable
 fun DecimalNumberField(
   value: BigDecimal?,
+  modifier: Modifier = Modifier,
   min: BigDecimal? = null,
   max: BigDecimal? = null,
   enabled: Boolean = true,
@@ -24,6 +28,7 @@ fun DecimalNumberField(
     }
   OutlinedTextField(
     value = text,
+    textStyle = TextStyle(fontSize = 10.sp),
     onValueChange = {
       if (it.isEmpty()) {
         setValue(min?.takeIf { it > BigDecimal.ZERO } ?: BigDecimal.ZERO)
@@ -37,7 +42,8 @@ fun DecimalNumberField(
       text = it
     },
     enabled = enabled,
-    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+    modifier = modifier
   )
 }
 
