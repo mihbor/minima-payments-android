@@ -44,7 +44,7 @@ public class CardReader implements NfcAdapter.ReaderCallback {
     private WeakReference<DataCallback> dataCallback;
 
     public interface DataCallback {
-        void onDataReceived(String account);
+        void onDataReceived(String data);
     }
 
     public CardReader(DataCallback dataCallback) {

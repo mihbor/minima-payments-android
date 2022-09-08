@@ -98,10 +98,10 @@ suspend fun signTx(txnId: Int, key: String): JsonObject {
   return result
 }
 
-suspend fun post(txnId: Int): JsonObject {
+suspend fun post(txnId: Int): JsonObject? {
   val txncreator = "txnpost id:$txnId auto:true;"
   val result = MDS.cmd(txncreator)!!.jsonObject
-  return result["response"]!!.jsonObject
+  return result["response"]?.jsonObject
 }
 
 suspend fun exportTx(txnId: Int): String {

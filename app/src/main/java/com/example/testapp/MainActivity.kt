@@ -1,8 +1,8 @@
 package com.example.testapp
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
-import android.nfc.NdefMessage
 import android.nfc.NfcAdapter
 import android.os.Bundle
 import android.util.Log
@@ -12,20 +12,26 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.example.testapp.ui.View
+import com.example.testapp.minima.Output
+import com.example.testapp.minima.importTx
+import com.example.testapp.minima.json
+import com.example.testapp.ui.ChannelRequestView
+import com.example.testapp.ui.MainView
 import com.example.testapp.ui.theme.TestAppTheme
 import com.example.testapp.ui.toBigDecimalOrNull
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
+import getChannel
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonArray
 
 
 // Recommend NfcAdapter flags for reading from other Android devices. Indicates that this
@@ -46,6 +52,9 @@ class MainActivity : ComponentActivity(),
   var address by mutableStateOf("")
   var tokenId by mutableStateOf("0x00")
   var amount by mutableStateOf(ZERO)
+  var channel by mutableStateOf<ChannelState?>(null)
+  var updateTx by mutableStateOf<Pair<Int, JsonObject>?>(null)
+  var settleTx by mutableStateOf<Pair<Int, JsonObject>?>(null)
 
   var cardReader: CardReader = CardReader(this)
 
@@ -74,7 +83,15 @@ class MainActivity : ComponentActivity(),
       TestAppTheme {
         // A surface container using the 'background' color from the theme
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colors.background) {
-          View(inited, uid, ::init, balances.associateBy { it.tokenid }, address, amount, tokenId, { tokenId = it }, isReaderModeOn, ::updateAmount, ::startEmitting, ::enableReaderMode)
+          channel?.let{
+            ChannelRequestView(it, updateTx!!, settleTx!!) {
+              channel = null
+              updateTx = null
+              settleTx = null
+            }
+          } ?: run{
+            MainView(inited, uid, ::init, balances.associateBy { it.tokenid }, address, amount, tokenId, { tokenId = it }, isReaderModeOn, ::updateAmount, ::startEmitting, ::enableReaderMode)
+          }
         }
       }
     }
@@ -106,12 +123,6 @@ class MainActivity : ComponentActivity(),
 //    super.onResume()
 //    enableReaderMode()
 //  }
-
-  fun sendDataToService(data: String) {
-    val intent = Intent(applicationContext, CardService::class.java)
-    intent.putExtra("data", data)
-    applicationContext.startService(intent)
-  }
 //
 //  override fun onNewIntent(intent: Intent) {
 //    super.onNewIntent(intent)
@@ -149,45 +160,44 @@ class MainActivity : ComponentActivity(),
     isReaderModeOn = false
     val activity: Activity = this
     NfcAdapter.getDefaultAdapter(activity)?.disableReaderMode(activity)
-    sendDataToService("$address;$tokenId;${amount.toPlainString()}")
+    applicationContext.sendDataToService("$address;$tokenId;${amount.toPlainString()}")
   }
 
   private fun updateAmount(amount: BigDecimal?) {
     Log.i(TAG, "Update amount")
     this.amount = amount ?: ZERO
-    if (!isReaderModeOn) sendDataToService("$address;$tokenId;${this.amount.toPlainString()}")
+    if (!isReaderModeOn) applicationContext.sendDataToService("$address;$tokenId;${this.amount.toPlainString()}")
   }
 
   override fun onDataReceived(data: String) {
     Log.i(TAG, "data received $data")
     val splits = data.split(";")
-    this.address = splits[0]
-    if (splits.size > 1) this.tokenId = splits[1]
-    if (splits.size > 2) this.amount = splits[2].toBigDecimal()
+    if (splits[0] == "TXN_REQUEST") {
+      val (_, updateTxText, settleTxText) = splits
+      scope.launch {
+        updateTx = newTxId().let{
+          it to importTx(it, updateTxText)!!.also { updateTx ->
+            channel = getChannel(updateTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }.first().address)
+            settleTx = newTxId().let { it to importTx(it, settleTxText)!! }
+          }
+        }
+      }
+    } else if (splits[0] == "TXN_UPDATE_ACK") {
+      val (_, updateTxText, settleTxText) = splits
+      scope.launch {
+        channelUpdateAck(updateTxText, settleTxText)
+      }
+    } else {
+      this.address = splits[0]
+      if (splits.size > 1) this.tokenId = splits[1]
+      if (splits.size > 2) this.amount = splits[2].toBigDecimal()
+    }
   }
 }
 
-//fun createTextRecord(payload: String, locale: Locale, encodeInUtf8: Boolean): NdefRecord {
-//  val langBytes = locale.language.toByteArray(Charset.forName("US-ASCII"))
-//  val utfEncoding = if (encodeInUtf8) Charset.forName("UTF-8") else Charset.forName("UTF-16")
-//  val textBytes = payload.toByteArray(utfEncoding)
-//  val utfBit: Int = if (encodeInUtf8) 0 else 1 shl 7
-//  val status = (utfBit + langBytes.size).toChar()
-//  val data = ByteArray(1 + langBytes.size + textBytes.size)
-//  data[0] = status.toByte()
-//  System.arraycopy(langBytes, 0, data, 1, langBytes.size)
-//  System.arraycopy(textBytes, 0, data, 1 + langBytes.size, textBytes.size)
-//  return NdefRecord(NdefRecord.TNF_WELL_KNOWN, NdefRecord.RTD_TEXT, ByteArray(0), data)
-//}
 
-//fun createNdefMessage(): NdefMessage {
-//  val text = "Beam me up, Android!"
-//  return NdefMessage(createTextRecord(text, Locale.UK, true))
-//}
-
-@Composable
-fun Messages(messages: List<NdefMessage>) {
-  messages.forEach { msg ->
-    Text(msg.records.joinToString { it.payload.toString() })
-  }
+fun Context.sendDataToService(data: String) {
+  val intent = Intent(this, CardService::class.java)
+  intent.putExtra("data", data)
+  this.startService(intent)
 }

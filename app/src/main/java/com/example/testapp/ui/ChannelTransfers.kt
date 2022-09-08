@@ -7,12 +7,14 @@ import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.testapp.ChannelState
 import com.example.testapp.requestViaChannel
 import com.example.testapp.scope
+import com.example.testapp.sendDataToService
 import com.example.testapp.ui.theme.TestAppTheme
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ONE
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
@@ -20,6 +22,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ChannelTransfers(channel: ChannelState) {
+  val context = LocalContext.current
 //  if (channel.myBalance > ZERO) Row {
 //    var amount by remember { mutableStateOf(ZERO) }
 //    DecimalNumberField(amount, Modifier.width(60.dp).height(50.dp), min = ZERO, max = channel.myBalance) { it?.let { amount = it } }
@@ -39,7 +42,8 @@ fun ChannelTransfers(channel: ChannelState) {
     Button(
       onClick = {
         scope.launch {
-          requestViaChannel(amount, channel)
+          val (updateTx, settleTx) = requestViaChannel(amount, channel)
+          context.sendDataToService("TXN_REQUEST;$updateTx;$settleTx")
         }
       }
     ) {

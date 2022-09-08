@@ -3,10 +3,13 @@ package com.example.testapp
 import android.util.Log
 import androidx.compose.runtime.*
 import com.example.testapp.minima.*
+import com.example.testapp.minima.State
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import getChannel
 import kotlinx.serialization.json.*
 import minima.Balance
 import minima.Coin
+import updateChannel
 import updateChannelStatus
 import java.security.SecureRandom
 
@@ -18,7 +21,7 @@ val eltooScriptCoins = mutableStateMapOf<String, List<Coin>>()
 
 fun newTxId() = SecureRandom().nextInt(1_000_000_000)
 
-suspend fun initMDS(uid: String, host: String = "localhost", port: Int = 9004) {
+suspend fun initMDS(uid: String, host: String, port: Int) {
   inited = false
   MDS.init(uid, host, port) { msg ->
     when(msg.jsonObject["event"]?.jsonPrimitive?.content) {
@@ -101,7 +104,7 @@ suspend fun ChannelState.completeSettlement(): ChannelState {
 
 suspend fun requestViaChannel(amount: BigDecimal, channel: ChannelState) = sendViaChannel(-amount, channel)
 
-suspend fun sendViaChannel(amount: BigDecimal, channel: ChannelState) {
+suspend fun sendViaChannel(amount: BigDecimal, channel: ChannelState): Pair<String, String> {
   val currentSettlementTx = importTx(newTxId(), channel.settlementTx)!!
   val input = json.decodeFromJsonElement<Input>(currentSettlementTx["inputs"]!!.jsonArray.first())
   val state = currentSettlementTx["state"]!!.jsonArray.find{ it.jsonObject["port"]!!.jsonPrimitive.int == 99 }!!.jsonObject["data"]!!.jsonPrimitive.content
@@ -112,7 +115,7 @@ suspend fun sendViaChannel(amount: BigDecimal, channel: ChannelState) {
     "txnoutput id:$updateTxnId amount:${input.amount} address:${input.address};" +
     "txnsign id:$updateTxnId publickey:${channel.myUpdateKey};" +
     "txnexport id:$updateTxnId;"
-  val updateTxn = MDS.cmd(updatetxncreator)?.jsonArray?.last()
+  val updateTxn = MDS.cmd(updatetxncreator)?.jsonArray?.last()!!.jsonObject["response"]!!.jsonObject["data"]!!.jsonPrimitive.content
   val settleTxnId = newTxId()
   val settletxncreator = "txncreate id:$settleTxnId;" +
     "txninput id:$settleTxnId address:${input.address} amount:${input.amount} tokenid:${input.tokenid} floating:true;" +
@@ -125,10 +128,43 @@ suspend fun sendViaChannel(amount: BigDecimal, channel: ChannelState) {
     else "") +
     "txnsign id:$settleTxnId publickey:${channel.mySettleKey};" +
     "txnexport id:$settleTxnId;"
-  val settleTxn = MDS.cmd(settletxncreator)?.jsonArray?.last()
+  val settleTxn = MDS.cmd(settletxncreator)?.jsonArray?.last()!!.jsonObject["response"]!!.jsonObject["data"]!!.jsonPrimitive.content
 
+  return updateTxn to settleTxn
 //  publish(
 //    channelKey(channel.counterPartyTriggerKey, channel.counterPartyUpdateKey, channel.counterPartySettleKey),
 //    listOf(if(amount > BigDecimal.ZERO) "TXN_UPDATE" else "TXN_REQUEST", updateTxn.response.data, settleTxn.response.data).joinToString(";")
 //  )
+}
+
+suspend fun signAndExportTx(id: Int, key: String): String {
+  signTx(id, key)
+  return exportTx(id)
+}
+
+suspend fun ChannelState.acceptRequest(updateTx: Pair<Int, JsonObject>, settleTx: Pair<Int, JsonObject>): Pair<String, String> {
+  val sequenceNumber = settleTx.second["state"]!!.jsonArray.map { json.decodeFromJsonElement<State>(it) }.find { it.port == 99 }?.data?.toInt()
+
+  val outputs = settleTx.second["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }
+  val channelBalance = outputs.find { it.miniaddress == myAddress }!!.amount to outputs.find { it.miniaddress == counterPartyAddress }!!.amount
+
+  val signedUpdateTx = signAndExportTx(updateTx.first, myUpdateKey)
+  val signedSettleTx = signAndExportTx(settleTx.first, mySettleKey)
+
+  updateChannel(this, channelBalance, sequenceNumber!!, signedUpdateTx, signedSettleTx)
+
+  return signedUpdateTx to signedSettleTx
+}
+
+suspend fun channelUpdateAck(updateTxText: String, settleTxText: String) {
+
+  importTx(newTxId(), updateTxText)!!.also { updateTx ->
+    val settleTx = importTx(newTxId(), settleTxText)!!
+    val channel = getChannel(updateTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }.first().address)!!
+    val sequenceNumber = settleTx["state"]!!.jsonArray.map { json.decodeFromJsonElement<State>(it) }.find { it.port == 99 }?.data?.toInt()!!
+
+    val outputs = settleTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }
+    val channelBalance = outputs.find { it.miniaddress == channel.myAddress }!!.amount to outputs.find { it.miniaddress == channel.counterPartyAddress }!!.amount
+    updateChannel(channel, channelBalance, sequenceNumber, updateTxText, settleTxText)
+  }
 }

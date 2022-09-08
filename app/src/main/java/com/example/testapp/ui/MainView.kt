@@ -21,7 +21,7 @@ import minima.TokenDescriptor
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun View(
+fun MainView(
   inited: Boolean,
   uid: String,
   setUid: (String) -> Unit,
@@ -122,7 +122,7 @@ private val previewBalances = listOf(
 @Composable
 fun ViewConsumer() {
   TestAppTheme {
-    View(true, "uid123", {}, previewBalances, "", ZERO, "0x00", {}, true, {}, {}, {})
+    MainView(true, "uid123", {}, previewBalances, "", ZERO, "0x00", {}, true, {}, {}, {})
   }
 }
 
@@ -130,6 +130,6 @@ fun ViewConsumer() {
 @Composable
 fun ViewEmitter() {
   TestAppTheme {
-    View(true, "uid456", {}, previewBalances, "address", BigDecimal.ONE, "0x01234567890", {}, false, {}, {}, {})
+    MainView(true, "uid456", {}, previewBalances, "address", BigDecimal.ONE, "0x01234567890", {}, false, {}, {}, {})
   }
 }

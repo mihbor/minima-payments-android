@@ -92,7 +92,7 @@ object MDS {
   /**
    * Minima Startup - with the callback function used for all Minima messages
    */
-  suspend fun init(minidappuid: String, host: String = "localhost", port: Int = 9004, callback: Callback = null) {
+  suspend fun init(minidappuid: String, host: String, port: Int, callback: Callback = null) {
     this.minidappuid = minidappuid
     log("Initialising MDS [$minidappuid]")
 
