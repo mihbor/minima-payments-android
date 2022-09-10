@@ -19,7 +19,6 @@ import android.content.Intent
 import android.nfc.cardemulation.HostApduService
 import android.os.Bundle
 import android.util.Log
-import java.util.*
 
 /**
  * This is a sample APDU Service which demonstrates how to interface with the card emulation support
@@ -88,7 +87,7 @@ class CardService : HostApduService() {
 //            String account = AccountStorage.GetAccount(this);
       val dataBytes = data!!.toByteArray()
       Log.w(TAG, "Sending data of size " + dataBytes.size + " : " + data)
-      ConcatArrays(dataBytes, SELECT_OK_SW)
+      dataBytes + SELECT_OK_SW
     } else {
       UNKNOWN_CMD_SW
     }
@@ -105,10 +104,10 @@ class CardService : HostApduService() {
     private const val SELECT_APDU_HEADER = "00A40400"
 
     // "OK" status word sent in response to SELECT AID command (0x9000)
-    private val SELECT_OK_SW = HexStringToByteArray("9000")
+    private val SELECT_OK_SW = "9000".decodeHex()
 
     // "UNKNOWN" status word sent in response to invalid APDU command (0x0000)
-    private val UNKNOWN_CMD_SW = HexStringToByteArray("0000")
+    private val UNKNOWN_CMD_SW = "0000".decodeHex()
     private val SELECT_APDU = BuildSelectApdu(AID)
     // END_INCLUDE(processCommandApdu)
     /**
@@ -120,72 +119,17 @@ class CardService : HostApduService() {
      */
     fun BuildSelectApdu(aid: String): ByteArray {
       // Format: [CLASS | INSTRUCTION | PARAMETER 1 | PARAMETER 2 | LENGTH | DATA]
-      return HexStringToByteArray(SELECT_APDU_HEADER + String.format("%02X", aid.length / 2) + aid)
-    }
-
-    /**
-     * Utility method to convert a byte array to a hexadecimal string.
-     *
-     * @param bytes Bytes to convert
-     * @return String, containing hexadecimal representation.
-     */
-    fun ByteArrayToHexString(bytes: ByteArray): String {
-      val hexArray = charArrayOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F')
-      val hexChars = CharArray(bytes.size * 2) // Each byte has two hex characters (nibbles)
-      var v: Int
-      for (j in bytes.indices) {
-        v = bytes[j].toInt() and 0xFF // Cast bytes[j] to int, treating as unsigned value
-        hexChars[j * 2] = hexArray[v ushr 4] // Select hex character from upper nibble
-        hexChars[j * 2 + 1] = hexArray[v and 0x0F] // Select hex character from lower nibble
-      }
-      return String(hexChars)
+      return (SELECT_APDU_HEADER + String.format("%02X", aid.length / 2) + aid).decodeHex()
     }
 
     fun ByteArray.toHex(): String = joinToString(separator = "") { eachByte -> "%02X".format(eachByte) }
 
-    /**
-     * Utility method to convert a hexadecimal string to a byte string.
-     *
-     *
-     * Behavior with input strings containing non-hexadecimal characters is undefined.
-     *
-     * @param s String containing hexadecimal characters to convert
-     * @return Byte array generated from input
-     * @throws IllegalArgumentException if input length is incorrect
-     */
-    @Throws(IllegalArgumentException::class)
-    fun HexStringToByteArray(s: String): ByteArray {
-      val len = s.length
-      require(len % 2 != 1) { "Hex string must have even number of characters" }
-      val data = ByteArray(len / 2) // Allocate 1 byte per 2 hex characters
-      var i = 0
-      while (i < len) {
+    fun String.decodeHex(): ByteArray {
+      check(length % 2 == 0) { "Must have an even length" }
 
-        // Convert each character into a integer (base-16), then bit-shift into place
-        data[i / 2] = ((s[i].digitToInt(16) shl 4) + s[i + 1].digitToInt(16)).toByte()
-        i += 2
-      }
-      return data
-    }
-
-    /**
-     * Utility method to concatenate two byte arrays.
-     * @param first First array
-     * @param rest Any remaining arrays
-     * @return Concatenated copy of input arrays
-     */
-    fun ConcatArrays(first: ByteArray, vararg rest: ByteArray): ByteArray {
-      var totalLength = first.size
-      for (array in rest) {
-        totalLength += array.size
-      }
-      val result = Arrays.copyOf(first, totalLength)
-      var offset = first.size
-      for (array in rest) {
-        System.arraycopy(array, 0, result, offset, array.size)
-        offset += array.size
-      }
-      return result
+      return chunked(2)
+        .map { it.toInt(16).toByte() }
+        .toByteArray()
     }
   }
 }

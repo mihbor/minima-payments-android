@@ -65,7 +65,7 @@ class CardReader(dataCallback: DataCallback) : ReaderCallback {
         Log.i(TAG, "Requesting remote AID: " + AID + " max transceive length is: " + isoDep.maxTransceiveLength)
         val command = BuildSelectApdu(AID)
         // Send command to remote device
-        Log.i(TAG, "Sending: " + ByteArrayToHexString(command))
+        Log.i(TAG, "Sending: " + command.toHex())
         val result = isoDep.transceive(command)
         // If AID is successfully selected, 0x9000 is returned as the status word (last 2
         // bytes of the result) by convention. Everything before the status word is
@@ -73,7 +73,7 @@ class CardReader(dataCallback: DataCallback) : ReaderCallback {
         val resultLength = result.size
         Log.i(TAG, "Response length: $resultLength")
         val statusWord = byteArrayOf(result[resultLength - 2], result[resultLength - 1])
-        Log.i(TAG, "Status word: " + ByteArrayToHexString(statusWord))
+        Log.i(TAG, "Status word: " + statusWord.toHex())
         val payload = Arrays.copyOf(result, resultLength - 2)
         if (SELECT_OK_SW.contentEquals(statusWord)) {
           // The remote NFC device will immediately respond with its stored account number
@@ -110,45 +110,17 @@ class CardReader(dataCallback: DataCallback) : ReaderCallback {
      */
     fun BuildSelectApdu(aid: String): ByteArray {
       // Format: [CLASS | INSTRUCTION | PARAMETER 1 | PARAMETER 2 | LENGTH | DATA]
-      return HexStringToByteArray(SELECT_APDU_HEADER + String.format("%02X", aid.length / 2) + aid)
+      return (SELECT_APDU_HEADER + String.format("%02X", aid.length / 2) + aid).decodeHex()
     }
 
-    /**
-     * Utility class to convert a byte array to a hexadecimal string.
-     *
-     * @param bytes Bytes to convert
-     * @return String, containing hexadecimal representation.
-     */
-    fun ByteArrayToHexString(bytes: ByteArray): String {
-      val hexArray = charArrayOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F')
-      val hexChars = CharArray(bytes.size * 2)
-      var v: Int
-      for (j in bytes.indices) {
-        v = bytes[j].toInt() and 0xFF
-        hexChars[j * 2] = hexArray[v ushr 4]
-        hexChars[j * 2 + 1] = hexArray[v and 0x0F]
-      }
-      return String(hexChars)
-    }
+    fun ByteArray.toHex(): String = joinToString(separator = "") { eachByte -> "%02X".format(eachByte) }
 
-    /**
-     * Utility class to convert a hexadecimal string to a byte string.
-     *
-     *
-     * Behavior with input strings containing non-hexadecimal characters is undefined.
-     *
-     * @param s String containing hexadecimal characters to convert
-     * @return Byte array generated from input
-     */
-    fun HexStringToByteArray(s: String): ByteArray {
-      val len = s.length
-      val data = ByteArray(len / 2)
-      var i = 0
-      while (i < len) {
-        data[i / 2] = ((s[i].digitToInt(16) shl 4) + s[i + 1].digitToInt(16)).toByte()
-        i += 2
-      }
-      return data
+    fun String.decodeHex(): ByteArray {
+      check(length % 2 == 0) { "Must have an even length" }
+
+      return chunked(2)
+        .map { it.toInt(16).toByte() }
+        .toByteArray()
     }
   }
 
