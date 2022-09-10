@@ -43,7 +43,7 @@ suspend fun getChannel(eltooAddress: String): ChannelState? {
 }
 
 suspend fun getChannels(status: String? = null): List<ChannelState> {
-  val sql = MDS.sql("SELECT * FROM channel${status?.let { " WHERE status = '$it'" } ?: ""};")?.jsonObject
+  val sql = MDS.sql("SELECT * FROM channel${status?.let { " WHERE status = '$it'" } ?: ""} ORDER BY id DESC;")?.jsonObject
   val rows = sql?.get("rows")?.jsonArray ?: emptyList()
   
   return rows.map{it.jsonObject}.map(JsonObject::toChannel)

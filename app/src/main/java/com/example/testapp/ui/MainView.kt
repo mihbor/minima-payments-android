@@ -10,6 +10,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.testapp.MainActivity
 import com.example.testapp.scope
 import com.example.testapp.send
 import com.example.testapp.ui.theme.TestAppTheme
@@ -33,7 +34,8 @@ fun MainView(
   isReaderMode: Boolean,
   setAmount: (BigDecimal?) -> Unit,
   startEmitting: () -> Unit,
-  stopEmitting: () -> Unit
+  stopEmitting: () -> Unit,
+  activity: MainActivity?
 ) {
 
   var uidInput by remember { mutableStateOf(uid) }
@@ -93,21 +95,27 @@ fun MainView(
         DecimalNumberField(amount, enabled = !isReaderMode, setValue = setAmount)
         if (isReaderMode) {
           val context = LocalContext.current
-          Button(enabled = address.isNotBlank() && amount > ZERO && balances[tokenId]?.sendable?.let{ it >= amount } ?: false, onClick = {
-            scope.launch {
-              val success = send(address, amount, tokenId)
-              Toast.makeText(context, "Sending result: $success", Toast.LENGTH_LONG).show()
-              if (success) {
-                setAmount(ZERO)
+          var sending by remember { mutableStateOf(false) }
+          Button(
+            enabled = !sending && address.isNotBlank() && amount > ZERO && balances[tokenId]?.sendable?.let{ it >= amount } ?: false,
+            onClick = {
+              sending = true
+              scope.launch {
+                val success = send(address, amount, tokenId)
+                sending = false
+                Toast.makeText(context, "Sending result: $success", Toast.LENGTH_LONG).show()
+                if (success) {
+                  setAmount(ZERO)
+                }
               }
             }
-          }) {
+          ) {
             Text("Send!")
           }
         }
       }
       Row {
-        ChannelListing()
+        ChannelListing(activity)
       }
     }
   }
@@ -122,7 +130,7 @@ private val previewBalances = listOf(
 @Composable
 fun ViewConsumer() {
   TestAppTheme {
-    MainView(true, "uid123", {}, previewBalances, "", ZERO, "0x00", {}, true, {}, {}, {})
+    MainView(true, "uid123", {}, previewBalances, "", ZERO, "0x00", {}, true, {}, {}, {}, null)
   }
 }
 
@@ -130,6 +138,6 @@ fun ViewConsumer() {
 @Composable
 fun ViewEmitter() {
   TestAppTheme {
-    MainView(true, "uid456", {}, previewBalances, "address", BigDecimal.ONE, "0x01234567890", {}, false, {}, {}, {})
+    MainView(true, "uid456", {}, previewBalances, "address", BigDecimal.ONE, "0x01234567890", {}, false, {}, {}, {}, null)
   }
 }

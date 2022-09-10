@@ -3,6 +3,7 @@ package com.example.testapp.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.MaterialTheme
@@ -13,11 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.testapp.ChannelState
-import com.example.testapp.blockNumber
-import com.example.testapp.eltooScriptCoins
+import com.example.testapp.*
 import com.example.testapp.minima.getCoins
-import com.example.testapp.scope
 import com.example.testapp.ui.theme.TestAppTheme
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import getChannels
@@ -26,38 +24,42 @@ import minima.Coin
 
 
 @Composable
-fun ChannelListing() {
+fun ChannelListing(activity: MainActivity?) {
   var showChannels by remember { mutableStateOf(false) }
   val channels = remember { mutableStateListOf<ChannelState>() }
 
-  Column {
-    Row {
-      Button(
-        onClick = {
-          showChannels = !showChannels
-          if (showChannels) loadChannels(channels)
-        },
-        colors = ButtonDefaults.buttonColors(
-          backgroundColor = (if (showChannels) MaterialTheme.colors.primary else Color.Unspecified),
-        ),
-      ) {
-        Text("Channel listing")
-      }
-      if (showChannels) {
-        Button(onClick = { loadChannels(channels) }
+  LazyColumn {
+    item {
+      Row {
+        Button(
+          onClick = {
+            showChannels = !showChannels
+            if (showChannels) loadChannels(channels)
+          },
+          colors = ButtonDefaults.buttonColors(
+            backgroundColor = (if (showChannels) MaterialTheme.colors.primary else Color.Unspecified),
+          ),
         ) {
-          Text("Refresh")
+          Text("Channel listing")
+        }
+        if (showChannels) {
+          Button(onClick = { loadChannels(channels) }
+          ) {
+            Text("Refresh")
+          }
         }
       }
     }
-    if (showChannels) ChannelTable(channels, eltooScriptCoins) { index, channel ->
-      channels[index] = channel
+    if (showChannels) item {
+      ChannelTable(channels, eltooScriptCoins, activity) { index, channel ->
+        channels[index] = channel
+      }
     }
   }
 }
 
 @Composable
-fun ChannelTable(channels: List<ChannelState>, eltooScriptCoins: Map<String, List<Coin>>, updateChannel: (Int, ChannelState) -> Unit) {
+fun ChannelTable(channels: List<ChannelState>, eltooScriptCoins: Map<String, List<Coin>>, activity: MainActivity?, updateChannel: (Int, ChannelState) -> Unit) {
 
   Row {
     Text("ID", Modifier.width(30.dp), fontSize = 10.sp)
@@ -76,7 +78,7 @@ fun ChannelTable(channels: List<ChannelState>, eltooScriptCoins: Map<String, Lis
       Text(channel.counterPartyBalance.toPlainString(), Modifier.width(50.dp), fontSize = 10.sp)
       Column(Modifier.width(250.dp)) {
         if (channel.status == "OPEN") {
-          ChannelTransfers(channel)
+          ChannelTransfers(channel, activity)
         }
         Settlement(channel, blockNumber, eltooScriptCoins[channel.eltooAddress] ?: emptyList()) {
           updateChannel(index, it)
@@ -101,7 +103,7 @@ private fun loadChannels(channels: MutableList<ChannelState>) {
 @Preview
 fun PreviewChannelListing() {
   TestAppTheme {
-    ChannelListing()
+    ChannelListing(null)
   }
 }
 
@@ -112,7 +114,8 @@ fun PreviewChannelTable() {
     Column {
       ChannelTable(
         listOf(fakeChannel, fakeChannel.copy(status = "TRIGGERED", eltooAddress = "Mx999", sequenceNumber = 3, updateTx = "abc")),
-        mapOf("Mx999" to listOf(Coin("", BigDecimal.ONE, coinid = "", storestate = true, tokenid = "0x00", created = "100")))
+        mapOf("Mx999" to listOf(Coin("", BigDecimal.ONE, coinid = "", storestate = true, tokenid = "0x00", created = "100"))),
+        null
       ) { _, _ -> }
     }
   }

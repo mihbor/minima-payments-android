@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.example.testapp.minima.Output
+import com.example.testapp.minima.getAddress
 import com.example.testapp.minima.importTx
 import com.example.testapp.minima.json
 import com.example.testapp.ui.ChannelRequestView
@@ -43,8 +44,7 @@ const val TAG = "MainActivity"
 
 val scope = MainScope()
 
-class MainActivity : ComponentActivity(),
-  CardReader.DataCallback {
+class MainActivity : ComponentActivity(), CardReader.DataCallback {
 //  val nfcMessages = mutableStateListOf<NdefMessage>()
   var isReaderModeOn by mutableStateOf(true)
 
@@ -58,10 +58,10 @@ class MainActivity : ComponentActivity(),
 
   var cardReader: CardReader = CardReader(this)
 
-  fun init(uid: String, host: String = "localhost", port: Int = 9004) {
+  fun initMDS(uid: String, host: String = "localhost", port: Int = 9004) {
     this.uid = uid
     scope.launch {
-      initMDS(uid, host, port)
+      com.example.testapp.initMDS(uid, host, port)
     }
   }
 
@@ -70,12 +70,12 @@ class MainActivity : ComponentActivity(),
 
     intent?.data?.let{ uri ->
       val action = uri.path
-      uri.getQueryParameter("uid")?.let { init(it, uri.host ?: "localhost", uri.port) }
+      uri.getQueryParameter("uid")?.let { initMDS(it, uri.host ?: "localhost", uri.port) }
       if (action == "/emit") {
         uri.getQueryParameter("address")?.let { address = it }
         uri.getQueryParameter("token")?.let { tokenId = it }
         uri.getQueryParameter("amount")?.toBigDecimalOrNull()?.let{ amount = it }
-        scope.launch { startEmitting() }
+        scope.launch { emitReceive() }
       }
       Log.i(TAG, "action: $action")
     }
@@ -83,14 +83,16 @@ class MainActivity : ComponentActivity(),
       TestAppTheme {
         // A surface container using the 'background' color from the theme
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colors.background) {
-          channel?.let{
+          channel?.let {
             ChannelRequestView(it, updateTx!!, settleTx!!) {
               channel = null
               updateTx = null
               settleTx = null
             }
-          } ?: run{
-            MainView(inited, uid, ::init, balances.associateBy { it.tokenid }, address, amount, tokenId, { tokenId = it }, isReaderModeOn, ::updateAmount, ::startEmitting, ::enableReaderMode)
+          }
+          if (channel == null) {
+            MainView(inited, uid,
+              this::initMDS, balances.associateBy { it.tokenid }, address, amount, tokenId, { tokenId = it }, isReaderModeOn, ::updateAmount, ::emitReceive, ::enableReaderMode, this)
           }
         }
       }
@@ -100,44 +102,12 @@ class MainActivity : ComponentActivity(),
     if (nfcAdapter == null) {
       Toast.makeText(this, "NFC is not available", Toast.LENGTH_LONG).show()
       System.err.println("NFC is not available")
-//      finish()
       return
     }
-
-//    if (nfcAdapter.isNdefPushEnabled()) {
-//      nfcAdapter.setNdefPushMessage(createNdefMessage(), this)
-//    } else {
-//      Toast.makeText(this, "NDEF push not enabled", Toast.LENGTH_LONG).show()
-//
-//    }
+    enableReaderMode()
   }
 
-//  override fun onPause() {
-//    super.onPause()
-//    scope.launch {
-//      startEmitting()
-//    }
-//  }
-//
-//  override fun onResume() {
-//    super.onResume()
-//    enableReaderMode()
-//  }
-//
-//  override fun onNewIntent(intent: Intent) {
-//    super.onNewIntent(intent)
-//
-//    if (NfcAdapter.ACTION_NDEF_DISCOVERED == intent.action) {
-//      Toast.makeText(this, "NDEF Discovered!", Toast.LENGTH_LONG).show()
-//      System.err.println("NDEF Discovered!")
-//      intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES)?.also { rawMessages ->
-//        val messages: List<NdefMessage> = rawMessages.map { it as NdefMessage }
-//        nfcMessages += messages
-//      }
-//    }
-//  }
-
-  private fun enableReaderMode() {
+  fun enableReaderMode() {
     Log.i(TAG, "Enabling reader mode")
     Toast.makeText(this, "Enabling reader mode", Toast.LENGTH_LONG).show()
     address = ""
@@ -154,13 +124,19 @@ class MainActivity : ComponentActivity(),
     isReaderModeOn = true
   }
 
-  private fun startEmitting() {
+  private fun emitReceive() {
+    disableReaderMode()
+    scope.launch {
+      address = getAddress()
+      applicationContext.sendDataToService("$address;$tokenId;${amount.toPlainString()}")
+    }
+  }
+
+  fun disableReaderMode() {
     Log.i(TAG, "Disabling reader mode")
     Toast.makeText(this, "Disabling reader mode", Toast.LENGTH_LONG).show()
     isReaderModeOn = false
-    val activity: Activity = this
-    NfcAdapter.getDefaultAdapter(activity)?.disableReaderMode(activity)
-    applicationContext.sendDataToService("$address;$tokenId;${amount.toPlainString()}")
+    NfcAdapter.getDefaultAdapter(this)?.disableReaderMode(this)
   }
 
   private fun updateAmount(amount: BigDecimal?) {
@@ -194,7 +170,6 @@ class MainActivity : ComponentActivity(),
     }
   }
 }
-
 
 fun Context.sendDataToService(data: String) {
   val intent = Intent(this, CardService::class.java)

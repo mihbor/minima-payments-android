@@ -50,17 +50,10 @@ object MDS {
 
   //Is logging RPC enabled
   var logging = false
-  
-  //When debuggin you can hard set the Host and port
-  var DEBUG_HOST: String? = null
-  var DEBUG_PORT = -1
-  
-  //An allowed TEST Minidapp ID for SQL - can be overridden
-  var DEBUG_MINIDAPPID = "0x00"
 
   val client = HttpClient(OkHttp) {
     install(HttpTimeout) {
-      requestTimeoutMillis = 40000
+      requestTimeoutMillis = 45000
       socketTimeoutMillis = 60000
     }
     engine {
