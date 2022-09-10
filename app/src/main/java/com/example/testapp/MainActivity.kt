@@ -84,7 +84,7 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
         // A surface container using the 'background' color from the theme
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colors.background) {
           channel?.let {
-            ChannelRequestView(it, updateTx!!, settleTx!!) {
+            ChannelRequestView(it, updateTx!!, settleTx!!, this) {
               channel = null
               updateTx = null
               settleTx = null
@@ -146,15 +146,16 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
   }
 
   override fun onDataReceived(data: String) {
-    Log.i(TAG, "data received $data")
+    Log.i(TAG, "data received length: ${data.length}, " + data)
     val splits = data.split(";")
     if (splits[0] == "TXN_REQUEST") {
       val (_, updateTxText, settleTxText) = splits
+      Log.i(TAG, "TXN_REQUEST received, updateTxLength: ${updateTxText.length}, settleTxLength: ${settleTxText.length}")
       scope.launch {
         updateTx = newTxId().let{
           it to importTx(it, updateTxText)!!.also { updateTx ->
-            channel = getChannel(updateTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }.first().address)
             settleTx = newTxId().let { it to importTx(it, settleTxText)!! }
+            channel = getChannel(updateTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }.first().address)
           }
         }
       }

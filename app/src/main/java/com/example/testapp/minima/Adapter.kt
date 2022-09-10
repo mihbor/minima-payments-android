@@ -117,5 +117,6 @@ suspend fun importTx(txnId: Int, data: String): JsonObject? {
   val txnimport = result.find{ it.jsonObject["command"]?.jsonPrimitive?.content == "txnimport" }?.jsonObject
   val status = txnimport?.get("status")?.jsonPrimitive?.boolean
   Log.i(TAG, "import: " + status)
+  if (status != true) Log.e(TAG, "import message: " + txnimport?.get("message")?.jsonPrimitive?.content)
   return if (status ?: false) txnimport?.get("response")?.jsonObject?.get("transaction")?.jsonObject?.let(json::decodeFromJsonElement) else null
 }

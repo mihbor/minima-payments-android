@@ -36,13 +36,14 @@ import android.util.Log
  */
 class CardService : HostApduService() {
   private var data: String? = ""
+  private var dataBytes: ByteArray = ByteArray(0)
   override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
     Log.i(TAG, "Received start command")
-    // Check if intent has extras
+    Log.i(TAG, "SELECT_APDU is: " + SELECT_APDU.toHex())
+    Log.i(TAG, "READ_BINARY is: " + GET_RESPONSE.toHex())
     intent.extras?.let {
-
-      // Get message
       data = it.getString("data")
+      dataBytes = data?.toByteArray() ?: ByteArray(0)
       Log.i(TAG, "Data of size " + data?.length + " : " + data)
     }
     return START_NOT_STICKY
@@ -82,54 +83,18 @@ class CardService : HostApduService() {
     Log.w(TAG, "Received APDU: " + commandApdu.toHex())
     // If the APDU matches the SELECT AID command for this service,
     // send the loyalty card account number, followed by a SELECT_OK status trailer (0x9000).
-    Log.i(TAG, "SELECT_APDU is: " + SELECT_APDU.toHex())
     return if (SELECT_APDU.contentEquals(commandApdu)) {
 //            String account = AccountStorage.GetAccount(this);
-      val dataBytes = data!!.toByteArray()
-      Log.w(TAG, "Sending data of size " + dataBytes.size + " : " + data)
-      dataBytes + SELECT_OK_SW
-    } else {
-      UNKNOWN_CMD_SW
-    }
+      Log.w(TAG, "Sending OK")
+      SELECT_OK_SW
+    } else if (GET_RESPONSE.contentEquals(commandApdu)) {
+      val currentBytes = dataBytes.take(255).toByteArray()
+      Log.w(TAG, "Sending data of size " + currentBytes.size + " data: " + String(currentBytes))
+      currentBytes + if (dataBytes.size <= 255) SELECT_OK_SW else "61FF".decodeHex().also { dataBytes = dataBytes.toList().subList(255, dataBytes.size).toByteArray() }
+    } else UNKNOWN_CMD_SW
   }
 
   companion object {
     private const val TAG = "CardService"
-
-    // AID for our loyalty card service.
-    private const val AID = "F222222222"
-
-    // ISO-DEP command HEADER for selecting an AID.
-    // Format: [Class | Instruction | Parameter 1 | Parameter 2]
-    private const val SELECT_APDU_HEADER = "00A40400"
-
-    // "OK" status word sent in response to SELECT AID command (0x9000)
-    private val SELECT_OK_SW = "9000".decodeHex()
-
-    // "UNKNOWN" status word sent in response to invalid APDU command (0x0000)
-    private val UNKNOWN_CMD_SW = "0000".decodeHex()
-    private val SELECT_APDU = BuildSelectApdu(AID)
-    // END_INCLUDE(processCommandApdu)
-    /**
-     * Build APDU for SELECT AID command. This command indicates which service a reader is
-     * interested in communicating with. See ISO 7816-4.
-     *
-     * @param aid Application ID (AID) to select
-     * @return APDU for SELECT AID command
-     */
-    fun BuildSelectApdu(aid: String): ByteArray {
-      // Format: [CLASS | INSTRUCTION | PARAMETER 1 | PARAMETER 2 | LENGTH | DATA]
-      return (SELECT_APDU_HEADER + String.format("%02X", aid.length / 2) + aid).decodeHex()
-    }
-
-    fun ByteArray.toHex(): String = joinToString(separator = "") { eachByte -> "%02X".format(eachByte) }
-
-    fun String.decodeHex(): ByteArray {
-      check(length % 2 == 0) { "Must have an even length" }
-
-      return chunked(2)
-        .map { it.toInt(16).toByte() }
-        .toByteArray()
-    }
   }
 }

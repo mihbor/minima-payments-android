@@ -1,5 +1,6 @@
 package com.example.testapp.ui
 
+import android.util.Log
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -41,6 +42,7 @@ fun ChannelTransfers(channel: ChannelState, activity: MainActivity?) {
           activity?.apply {
             disableReaderMode()
             sendDataToService("TXN_REQUEST;$updateTx;$settleTx")
+            Log.i(TAG, "TXN_REQUEST sent, updateTxLength: ${updateTx.length}, settleTxLength: ${settleTx.length}")
           }
         }
       }
