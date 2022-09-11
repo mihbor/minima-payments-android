@@ -1,18 +1,3 @@
-/*
- * Copyright (C) 2013 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.example.testapp
 
 import android.nfc.NfcAdapter.ReaderCallback
@@ -26,7 +11,6 @@ import java.util.*
 
 /**
  * Callback class, invoked when an NFC card is scanned while the device is running in reader mode.
- *
  * Reader mode can be invoked by calling NfcAdapter
  */
 class CardReader(dataCallback: DataCallback) : ReaderCallback {
@@ -41,28 +25,22 @@ class CardReader(dataCallback: DataCallback) : ReaderCallback {
   /**
    * Callback when a new tag is discovered by the system.
    *
-   *
-   * Communication with the card should take place here.
-   *
    * @param tag Discovered tag
    */
   override fun onTagDiscovered(tag: Tag) {
     Log.i(TAG, "New tag discovered")
     // Android's Host-based Card Emulation (HCE) feature implements the ISO-DEP (ISO 14443-4)
     // protocol.
-    //
-    // In order to communicate with a device using HCE, the discovered tag should be processed
-    // using the IsoDep class.
     val isoDep = IsoDep.get(tag)
     if (isoDep != null) {
       try {
         // Connect to the remote NFC device
         isoDep.connect()
         isoDep.timeout = 15000
-        Log.i(TAG, "isExtendedLengthApduSupported: " + isoDep.isExtendedLengthApduSupported)
+        Log.i(TAG, "isExtendedLengthApduSupported: ${isoDep.isExtendedLengthApduSupported}, max transceive length is: ${isoDep.maxTransceiveLength}")
         // Build SELECT AID command for our service.
         // This command tells the remote device which service we wish to communicate with.
-        Log.i(TAG, "Requesting remote AID: " + AID + " max transceive length is: " + isoDep.maxTransceiveLength)
+        Log.i(TAG, "Requesting remote AID: " + AID)
         val result = isoDep.sendCommand(SELECT_APDU)
         if (SELECT_OK_SW.contentEquals(result.first)) {
           isoDep.communicate()
@@ -82,7 +60,7 @@ class CardReader(dataCallback: DataCallback) : ReaderCallback {
       partialData.clear()
     } else if (getResponseResult.first[0] == "61".decodeHex()[0]) {
       val data = String(getResponseResult.second, Charset.forName("UTF-8"))
-      Log.i(TAG, "Received chunck: $data")
+      Log.i(TAG, "Received chunk: $data")
       partialData.append(data)
       communicate(partialData)
     }

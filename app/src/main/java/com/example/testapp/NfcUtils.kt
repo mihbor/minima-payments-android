@@ -1,22 +1,20 @@
 package com.example.testapp
 
-
-// AID for our loyalty card service.
 const val AID = "F222222222"
+
+const val DATA_CHUNK_SIZE = 2100
 
 // ISO-DEP command HEADER for selecting an AID.
 // Format: [Class | Instruction | Parameter 1 | Parameter 2]
 private const val SELECT_APDU_HEADER = "00A40400"
+
 private const val GET_RESPONSE_HEADER = "00C00000"
 
-// "OK" status word sent in response to SELECT AID command (0x9000)
 val SELECT_OK_SW = "9000".decodeHex()
-
-// "UNKNOWN" status word sent in response to invalid APDU command (0x0000)
 val UNKNOWN_CMD_SW = "0000".decodeHex()
 val SELECT_APDU = buildSelectApdu(AID)
 val GET_RESPONSE = buildGetResponseApdu()
-// END_INCLUDE(processCommandApdu)
+
 /**
  * Build APDU for SELECT AID command. This command indicates which service a reader is
  * interested in communicating with. See ISO 7816-4.

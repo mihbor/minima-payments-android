@@ -85,7 +85,7 @@ object MDS {
   /**
    * Minima Startup - with the callback function used for all Minima messages
    */
-  suspend fun init(minidappuid: String, host: String, port: Int, callback: Callback = null) {
+  suspend fun init(minidappuid: String, host: String, port: Int, callback:  Callback = null) {
     this.minidappuid = minidappuid
     log("Initialising MDS [$minidappuid]")
 
@@ -121,6 +121,8 @@ object MDS {
    */
   suspend fun sql(command: String) =
     httpPostAsync("${mainhost}sql?uid=$minidappuid", command)
+      ?: if(command.startsWith("SELECT", ignoreCase = true)) httpPostAsync("${mainhost}sql?uid=$minidappuid", command)
+        else null
 
 //  /**
 //   * Form GET / POST parameters..
@@ -203,18 +205,23 @@ suspend fun PollListener(){
 suspend fun httpPostAsync(theUrl: String, params: String): JsonElement? {
   MDS.log("POST_RPC:$theUrl PARAMS:$params")
 
-  val response = client.post(theUrl) {
-    headers {
-      append(HttpHeaders.Connection, "close")
-//      append(HttpHeaders.ContentType, "text/plain; charset=UTF-8")
+  val response = try {
+    client.post(theUrl) {
+      headers {
+        append(HttpHeaders.Connection, "close")
+  //      append(HttpHeaders.ContentType, "text/plain; charset=UTF-8")
+      }
+      setBody(encodeURIComponent(params))
     }
-    setBody(encodeURIComponent(params))
+  } catch (e: HttpRequestTimeoutException) {
+    Log.w(TAG, "timeout: ", e)
+    null
   }
-  return if (response.status.isSuccess()) {
+  return response?.takeIf { it.status.isSuccess() }?.let {
     MDS.log("STATUS: ${response.status}; RESPONSE:${response.bodyAsText()}");
 
     json.parseToJsonElement(response.bodyAsText())
-  } else null
+  }
 }
 
 /**

@@ -20,7 +20,8 @@ import com.example.testapp.minima.Output
 import com.example.testapp.minima.getAddress
 import com.example.testapp.minima.importTx
 import com.example.testapp.minima.json
-import com.example.testapp.ui.ChannelRequestView
+import com.example.testapp.ui.ChannelRequestReceived
+import com.example.testapp.ui.ChannelRequestSent
 import com.example.testapp.ui.MainView
 import com.example.testapp.ui.theme.TestAppTheme
 import com.example.testapp.ui.toBigDecimalOrNull
@@ -52,7 +53,8 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
   var address by mutableStateOf("")
   var tokenId by mutableStateOf("0x00")
   var amount by mutableStateOf(ZERO)
-  var channel by mutableStateOf<ChannelState?>(null)
+  var requestReceivedOnChannel by mutableStateOf<ChannelState?>(null)
+  var requestSentOnChannel by mutableStateOf<ChannelState?>(null)
   var updateTx by mutableStateOf<Pair<Int, JsonObject>?>(null)
   var settleTx by mutableStateOf<Pair<Int, JsonObject>?>(null)
 
@@ -83,16 +85,33 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
       TestAppTheme {
         // A surface container using the 'background' color from the theme
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colors.background) {
-          channel?.let {
-            ChannelRequestView(it, updateTx!!, settleTx!!, this) {
-              channel = null
+          requestReceivedOnChannel?.let {
+            ChannelRequestReceived(it, updateTx!!, settleTx!!, this) {
+              requestReceivedOnChannel = null
               updateTx = null
               settleTx = null
             }
           }
-          if (channel == null) {
-            MainView(inited, uid,
-              this::initMDS, balances.associateBy { it.tokenid }, address, amount, tokenId, { tokenId = it }, isReaderModeOn, ::updateAmount, ::emitReceive, ::enableReaderMode, this)
+          requestSentOnChannel?.let {
+            ChannelRequestSent(::enableReaderMode){ requestSentOnChannel = null }
+          }
+          if (requestReceivedOnChannel == null && requestSentOnChannel == null) {
+            MainView(
+              inited = inited,
+              uid = uid,
+              setUid = this::initMDS,
+              balances = balances.associateBy { it.tokenid },
+              address = address,
+              amount = amount,
+              tokenId = tokenId,
+              setTokenId = { tokenId = it },
+              isReaderMode = isReaderModeOn,
+              setAmount = ::updateAmount,
+              startEmitting = ::emitReceive,
+              stopEmitting = ::enableReaderMode,
+              setRequestSentOnChannel = { requestSentOnChannel = it },
+              activity = this
+            )
           }
         }
       }
@@ -155,7 +174,7 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
         updateTx = newTxId().let{
           it to importTx(it, updateTxText)!!.also { updateTx ->
             settleTx = newTxId().let { it to importTx(it, settleTxText)!! }
-            channel = getChannel(updateTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }.first().address)
+            requestReceivedOnChannel = getChannel(updateTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }.first().address)
           }
         }
       }
@@ -163,6 +182,7 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
       val (_, updateTxText, settleTxText) = splits
       scope.launch {
         channelUpdateAck(updateTxText, settleTxText)
+        requestSentOnChannel = null
       }
     } else {
       this.address = splits[0]

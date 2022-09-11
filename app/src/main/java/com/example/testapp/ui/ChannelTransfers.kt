@@ -1,7 +1,7 @@
 package com.example.testapp.ui
 
 import android.util.Log
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.Button
@@ -18,7 +18,7 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
 import kotlinx.coroutines.launch
 
 @Composable
-fun ChannelTransfers(channel: ChannelState, activity: MainActivity?) {
+fun ChannelTransfers(channel: ChannelState, activity: MainActivity?, setRequestSentOnChannel: (ChannelState) -> Unit) {
 //  if (channel.myBalance > ZERO) Row {
 //    var amount by remember { mutableStateOf(ZERO) }
 //    DecimalNumberField(amount, Modifier.width(60.dp).height(50.dp), min = ZERO, max = channel.myBalance) { it?.let { amount = it } }
@@ -32,35 +32,41 @@ fun ChannelTransfers(channel: ChannelState, activity: MainActivity?) {
 //      Text("Send via channel", fontSize = 10.sp)
 //    }
 //  }
-  if (channel.counterPartyBalance > ZERO) Row {
+  if (channel.counterPartyBalance > ZERO) {
     var amount by remember { mutableStateOf(ZERO) }
-    DecimalNumberField(amount, Modifier.width(60.dp).height(50.dp), min = ZERO, max = channel.counterPartyBalance) { it?.let { amount = it } }
+    var preparingRequest by remember { mutableStateOf(false) }
+    DecimalNumberField(amount,
+      Modifier
+        .width(100.dp)
+        .height(50.dp), min = ZERO, max = channel.counterPartyBalance) { it?.let { amount = it } }
     Button(
       onClick = {
+        preparingRequest = true
         scope.launch {
           val (updateTx, settleTx) = requestViaChannel(amount, channel)
           activity?.apply {
             disableReaderMode()
             sendDataToService("TXN_REQUEST;$updateTx;$settleTx")
             Log.i(TAG, "TXN_REQUEST sent, updateTxLength: ${updateTx.length}, settleTxLength: ${settleTx.length}")
+            setRequestSentOnChannel(channel)
+            preparingRequest = false
           }
         }
-      }
+      },
+      enabled = !preparingRequest
     ) {
-      Text("Request via channel", fontSize = 10.sp)
+      Text(if (preparingRequest) "Preparing request..." else "Request via channel", fontSize = 10.sp)
     }
   }
 }
-
-fun channelKey(vararg keys: String) = keys.joinToString(";")
 
 @Composable
 @Preview
 fun PreviewTransfers() {
   TestAppTheme {
-    ChannelTransfers(
-      fakeChannel, null
-    )
+    Column {
+      ChannelTransfers(fakeChannel, null, {})
+    }
   }
 }
 

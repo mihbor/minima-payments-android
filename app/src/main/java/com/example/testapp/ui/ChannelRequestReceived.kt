@@ -16,9 +16,10 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonArray
 
 @Composable
-fun ChannelRequestView(channel: ChannelState, updateTx: Pair<Int, JsonObject>, settleTx: Pair<Int, JsonObject>, activity: MainActivity?, dismiss: () -> Unit) {
+fun ChannelRequestReceived(channel: ChannelState, updateTx: Pair<Int, JsonObject>, settleTx: Pair<Int, JsonObject>, activity: MainActivity?, dismiss: () -> Unit) {
 
   var accepting by remember { mutableStateOf(false) }
+  var preparingResponse by remember { mutableStateOf(false) }
   val outputs = settleTx.second["outputs"]?.jsonArray?.map { json.decodeFromJsonElement<Output>(it) }
   val myOutput = outputs?.find { it.miniaddress == channel.myAddress }
   val balanceChange = channel.myBalance - (myOutput?.amount ?: ZERO)
@@ -33,18 +34,23 @@ fun ChannelRequestView(channel: ChannelState, updateTx: Pair<Int, JsonObject>, s
     }
     if(accepting) {
       Text("Use contactless again to complete transaction")
-    } else Button(onClick = {
-      scope.launch {
-        channel.acceptRequest(updateTx, settleTx).let { (updateTx, settleTx) ->
-          activity?.apply {
-            disableReaderMode()
-            sendDataToService("TXN_UPDATE_ACK;$updateTx;$settleTx")
+    } else Button(
+      onClick = {
+        preparingResponse = true
+        scope.launch {
+          channel.acceptRequest(updateTx, settleTx).let { (updateTx, settleTx) ->
+            activity?.apply {
+              disableReaderMode()
+              sendDataToService("TXN_UPDATE_ACK;$updateTx;$settleTx")
+            }
           }
+          accepting = true
+          preparingResponse = false
         }
-        accepting = true
-      }
-    }) {
-      Text("Accept")
+      },
+      enabled = !preparingResponse
+    ) {
+      Text(if (preparingResponse) "Reparing response..." else "Accept")
     }
   }
 }
@@ -53,6 +59,6 @@ fun ChannelRequestView(channel: ChannelState, updateTx: Pair<Int, JsonObject>, s
 @Preview
 fun PreviewChannelRequest() {
   TestAppTheme {
-    ChannelRequestView(channel = fakeChannel, updateTx = 1 to JsonObject(emptyMap()), settleTx = 2 to JsonObject(emptyMap()), null) { }
+    ChannelRequestReceived(channel = fakeChannel, updateTx = 1 to JsonObject(emptyMap()), settleTx = 2 to JsonObject(emptyMap()), null) { }
   }
 }

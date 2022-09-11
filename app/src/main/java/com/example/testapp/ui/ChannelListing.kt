@@ -21,10 +21,11 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import getChannels
 import kotlinx.coroutines.launch
 import minima.Coin
+import updateChannelStatus
 
 
 @Composable
-fun ChannelListing(activity: MainActivity?) {
+fun ChannelListing(activity: MainActivity?, setRequestSentOnChannel: (ChannelState) -> Unit) {
   var showChannels by remember { mutableStateOf(false) }
   val channels = remember { mutableStateListOf<ChannelState>() }
 
@@ -51,7 +52,7 @@ fun ChannelListing(activity: MainActivity?) {
       }
     }
     if (showChannels) item {
-      ChannelTable(channels, eltooScriptCoins, activity) { index, channel ->
+      ChannelTable(channels, eltooScriptCoins, activity, setRequestSentOnChannel) { index, channel ->
         channels[index] = channel
       }
     }
@@ -59,7 +60,13 @@ fun ChannelListing(activity: MainActivity?) {
 }
 
 @Composable
-fun ChannelTable(channels: List<ChannelState>, eltooScriptCoins: Map<String, List<Coin>>, activity: MainActivity?, updateChannel: (Int, ChannelState) -> Unit) {
+fun ChannelTable(
+  channels: List<ChannelState>,
+  eltooScriptCoins: Map<String, List<Coin>>,
+  activity: MainActivity?,
+  setRequestSentOnChannel: (ChannelState) -> Unit,
+  updateChannel: (Int, ChannelState) -> Unit
+) {
 
   Row {
     Text("ID", Modifier.width(30.dp), fontSize = 10.sp)
@@ -78,7 +85,7 @@ fun ChannelTable(channels: List<ChannelState>, eltooScriptCoins: Map<String, Lis
       Text(channel.counterPartyBalance.toPlainString(), Modifier.width(50.dp), fontSize = 10.sp)
       Column(Modifier.width(250.dp)) {
         if (channel.status == "OPEN") {
-          ChannelTransfers(channel, activity)
+          ChannelTransfers(channel, activity, setRequestSentOnChannel)
         }
         Settlement(channel, blockNumber, eltooScriptCoins[channel.eltooAddress] ?: emptyList()) {
           updateChannel(index, it)
@@ -90,12 +97,15 @@ fun ChannelTable(channels: List<ChannelState>, eltooScriptCoins: Map<String, Lis
 
 private fun loadChannels(channels: MutableList<ChannelState>) {
   scope.launch {
-    val newChannels = getChannels()
+    val newChannels = getChannels().map { channel ->
+      val eltooCoins = getCoins(address = channel.eltooAddress)
+      eltooScriptCoins.put(channel.eltooAddress, eltooCoins)
+      if (channel.status == "OPEN" && eltooCoins.isNotEmpty()) updateChannelStatus(channel, "TRIGGERED")
+      else if (channel.status in listOf("TRIGGERED", "UPDATED") && eltooCoins.isEmpty()) updateChannelStatus(channel, "SETTLED")
+      else channel
+    }
     channels.clear()
     channels.addAll(newChannels)
-    newChannels.forEach {
-      eltooScriptCoins.put(it.eltooAddress, getCoins(address = it.eltooAddress))
-    }
   }
 }
 
@@ -103,7 +113,7 @@ private fun loadChannels(channels: MutableList<ChannelState>) {
 @Preview
 fun PreviewChannelListing() {
   TestAppTheme {
-    ChannelListing(null)
+    ChannelListing(null, {})
   }
 }
 
@@ -115,7 +125,8 @@ fun PreviewChannelTable() {
       ChannelTable(
         listOf(fakeChannel, fakeChannel.copy(status = "TRIGGERED", eltooAddress = "Mx999", sequenceNumber = 3, updateTx = "abc")),
         mapOf("Mx999" to listOf(Coin("", BigDecimal.ONE, coinid = "", storestate = true, tokenid = "0x00", created = "100"))),
-        null
+        null,
+        {}
       ) { _, _ -> }
     }
   }

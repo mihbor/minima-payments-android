@@ -10,6 +10,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.testapp.ChannelState
 import com.example.testapp.MainActivity
 import com.example.testapp.scope
 import com.example.testapp.send
@@ -35,6 +36,7 @@ fun MainView(
   setAmount: (BigDecimal?) -> Unit,
   startEmitting: () -> Unit,
   stopEmitting: () -> Unit,
+  setRequestSentOnChannel: (ChannelState) -> Unit,
   activity: MainActivity?
 ) {
 
@@ -115,7 +117,7 @@ fun MainView(
         }
       }
       Row {
-        ChannelListing(activity)
+        ChannelListing(activity, setRequestSentOnChannel)
       }
     }
   }
@@ -130,7 +132,7 @@ private val previewBalances = listOf(
 @Composable
 fun ViewConsumer() {
   TestAppTheme {
-    MainView(true, "uid123", {}, previewBalances, "", ZERO, "0x00", {}, true, {}, {}, {}, null)
+    MainView(true, "uid123", {}, previewBalances, "", ZERO, "0x00", {}, true, {}, {}, {}, {}, null)
   }
 }
 
@@ -138,6 +140,6 @@ fun ViewConsumer() {
 @Composable
 fun ViewEmitter() {
   TestAppTheme {
-    MainView(true, "uid456", {}, previewBalances, "address", BigDecimal.ONE, "0x01234567890", {}, false, {}, {}, {}, null)
+    MainView(true, "uid456", {}, previewBalances, "address", BigDecimal.ONE, "0x01234567890", {}, false, {}, {}, {}, {}, null)
   }
 }

@@ -1,18 +1,3 @@
-/*
- * Copyright (C) 2013 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.example.testapp
 
 import android.content.Intent
@@ -21,18 +6,11 @@ import android.os.Bundle
 import android.util.Log
 
 /**
- * This is a sample APDU Service which demonstrates how to interface with the card emulation support
- * added in Android 4.4, KitKat.
- *
- *
- * This sample will be invoked for any terminals selecting AID of 0xF22222222.
+ * This service will be invoked for any terminals selecting AID of 0xF22222222.
  * See src/main/res/xml/aid_list.xml for more details.
  *
- *
- * Note: This is a low-level interface. Unlike the NdefMessage many developers
- * are familiar with for implementing Android Beam in apps, card emulation only provides a
- * byte-array based communication channel. It is left to developers to implement higher level
- * protocol support as needed.
+ * Note: This is a low-level interface, card emulation only provides a
+ * byte-array based communication channel.
  */
 class CardService : HostApduService() {
   private var data: String? = ""
@@ -56,20 +34,15 @@ class CardService : HostApduService() {
    *
    * @param reason Either DEACTIVATION_LINK_LOSS or DEACTIVATION_DESELECTED
    */
-  override fun onDeactivated(reason: Int) {}
+  override fun onDeactivated(reason: Int) {
+    Log.w(TAG, "disconnected, reason: $reason")
+  }
 
   /**
    * This method will be called when a command APDU has been received from a remote device. A
    * response APDU can be provided directly by returning a byte-array in this method. In general
    * response APDUs must be sent as quickly as possible, given the fact that the user is likely
    * holding his device over an NFC reader when this method is called.
-   *
-   *
-   * If there are multiple services that have registered for the same AIDs in
-   * their meta-data entry, you will only get called if the user has explicitly selected your
-   * service, either as a default or just for the next tap.
-   *
-   *
    * This method is running on the main thread of your application. If you
    * cannot return a response APDU immediately, return null and use the [ ][.sendResponseApdu] method later.
    *
@@ -78,19 +51,22 @@ class CardService : HostApduService() {
    * @return a byte-array containing the response APDU, or null if no response APDU can be sent
    * at this point.
    */
-  // BEGIN_INCLUDE(processCommandApdu)
   override fun processCommandApdu(commandApdu: ByteArray, extras: Bundle?): ByteArray {
     Log.w(TAG, "Received APDU: " + commandApdu.toHex())
     // If the APDU matches the SELECT AID command for this service,
-    // send the loyalty card account number, followed by a SELECT_OK status trailer (0x9000).
+    // send the SELECT_OK status trailer (0x9000).
     return if (SELECT_APDU.contentEquals(commandApdu)) {
 //            String account = AccountStorage.GetAccount(this);
       Log.w(TAG, "Sending OK")
       SELECT_OK_SW
     } else if (GET_RESPONSE.contentEquals(commandApdu)) {
-      val currentBytes = dataBytes.take(255).toByteArray()
+      val currentBytes = dataBytes.take(DATA_CHUNK_SIZE).toByteArray()
       Log.w(TAG, "Sending data of size " + currentBytes.size + " data: " + String(currentBytes))
-      currentBytes + if (dataBytes.size <= 255) SELECT_OK_SW else "61FF".decodeHex().also { dataBytes = dataBytes.toList().subList(255, dataBytes.size).toByteArray() }
+      currentBytes + if (dataBytes.size <= DATA_CHUNK_SIZE)
+        SELECT_OK_SW
+      else "61FF".decodeHex().also {
+        dataBytes = dataBytes.toList().subList(DATA_CHUNK_SIZE, dataBytes.size).toByteArray()
+      }
     } else UNKNOWN_CMD_SW
   }
 

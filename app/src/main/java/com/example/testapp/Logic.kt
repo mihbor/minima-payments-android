@@ -28,6 +28,7 @@ suspend fun initMDS(uid: String, host: String, port: Int) {
       "inited" -> {
         if (MDS.logging) Log.i(TAG, "Connected to Minima.")
         balances.addAll(getBalances())
+        blockNumber = getBlockNumber()
         inited = true
       }
       "NEWBALANCE" -> {
@@ -35,15 +36,21 @@ suspend fun initMDS(uid: String, host: String, port: Int) {
         balances.clear()
         balances.addAll(newBalances)
       }
+      "NEWBLOCK" -> {
+        blockNumber = msg.jsonObject["data"]!!.jsonObject["txpow"]!!.jsonObject["header"]!!.jsonObject["block"]!!.jsonPrimitive.content.toInt()
+      }
     }
   }
 }
 
-suspend fun coverShortage(tokenId: String, shortage: BigDecimal, inputs: MutableList<Coin>, outputs: MutableList<Output>) {
-  val coins = getCoins(tokenId = tokenId, sendable = true).ofAtLeast(shortage)
+suspend fun withChange(tokenId: String, amount: BigDecimal): Pair<List<Coin>, List<Output>> {
+  val inputs = mutableListOf<Coin>()
+  val outputs = mutableListOf<Output>()
+  val coins = getCoins(tokenId = tokenId, sendable = true).ofAtLeast(amount)
   coins.forEach { inputs.add(it) }
-  val change = coins.sumOf { it.tokenamount ?: it.amount } - shortage
+  val change = coins.sumOf { it.tokenamount ?: it.amount } - amount
   if (change > BigDecimal.ZERO) outputs.add(Output(newAddress(), change, tokenId))
+  return inputs to outputs
 }
 
 fun List<Coin>.ofAtLeast(amount: BigDecimal): List<Coin> {
@@ -56,10 +63,7 @@ fun <T> Iterable<T>.sumOf(selector: (T) -> BigDecimal) = fold(BigDecimal.ZERO) {
 
 suspend fun send(toAddress: String, amount: BigDecimal, tokenId: String): Boolean {
   val txnId = newTxId()
-  val inputs = mutableListOf<Coin>()
-  val outputs = mutableListOf<Output>()
-  coverShortage(tokenId, amount, inputs, outputs)
-
+  val (inputs, outputs) = withChange(tokenId, amount)
   val txncreator = "txncreate id:$txnId;" +
     inputs.map{ "txninput id:$txnId coinid:${it.coinid};"}.joinToString("") +
     "txnoutput id:$txnId amount:${amount.toPlainString()} address:$toAddress tokenid:$tokenId;" +
