@@ -19,7 +19,7 @@ fun DecimalNumberField(
   enabled: Boolean = true,
   setValue: (BigDecimal?) -> Unit = {}
 ) {
-  var text by remember { mutableStateOf(value?.toString() ?: "") }
+  var text by remember { mutableStateOf(value?.toPlainString() ?: "") }
   var isValid by remember { mutableStateOf(value?.isBetween(min, max) ?: false) }
   value.takeUnless { it == text.toBigDecimalOrNull() || it == BigDecimal.ZERO && text.isEmpty()}
     ?.let {

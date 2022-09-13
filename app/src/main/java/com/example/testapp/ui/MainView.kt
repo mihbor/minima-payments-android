@@ -1,5 +1,6 @@
 package com.example.testapp.ui
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
@@ -10,10 +11,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.testapp.ChannelState
-import com.example.testapp.MainActivity
-import com.example.testapp.scope
-import com.example.testapp.send
+import com.example.testapp.*
 import com.example.testapp.ui.theme.TestAppTheme
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
@@ -94,6 +92,7 @@ fun MainView(
         }
       }
       Row {
+        Log.i(TAG, "amount in MainView: $amount")
         DecimalNumberField(amount, enabled = !isReaderMode, setValue = setAmount)
         if (isReaderMode) {
           val context = LocalContext.current

@@ -77,10 +77,10 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
         uri.getQueryParameter("address")?.let { address = it }
         uri.getQueryParameter("token")?.let { tokenId = it }
         uri.getQueryParameter("amount")?.toBigDecimalOrNull()?.let{ amount = it }
-        scope.launch { emitReceive() }
-      }
-      Log.i(TAG, "action: $action")
-    }
+        scope.launch { emitReceive(address) }
+      } else enableReaderMode()
+      Log.i(TAG, uri.toString())
+    } ?: enableReaderMode()
     setContent {
       TestAppTheme {
         // A surface container using the 'background' color from the theme
@@ -121,9 +121,7 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
     if (nfcAdapter == null) {
       Toast.makeText(this, "NFC is not available", Toast.LENGTH_LONG).show()
       System.err.println("NFC is not available")
-      return
     }
-    enableReaderMode()
   }
 
   fun enableReaderMode() {
@@ -143,10 +141,10 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
     isReaderModeOn = true
   }
 
-  private fun emitReceive() {
+  private fun emitReceive(address: String? = null) {
     disableReaderMode()
     scope.launch {
-      address = getAddress()
+      this@MainActivity.address = address ?: getAddress()
       applicationContext.sendDataToService("$address;$tokenId;${amount.toPlainString()}")
     }
   }
