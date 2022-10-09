@@ -5,12 +5,12 @@ plugins {
 }
 
 android {
-  compileSdk 32
+  compileSdk 33
 
   defaultConfig {
     applicationId "com.example.testapp"
     minSdk 21
-    targetSdk 32
+    targetSdk 33
     versionCode 1
     versionName "1.0"
 
@@ -27,37 +27,38 @@ android {
     }
   }
   compileOptions {
-    sourceCompatibility JavaVersion.VERSION_1_8
-    targetCompatibility JavaVersion.VERSION_1_8
+    sourceCompatibility JavaVersion.VERSION_11
+    targetCompatibility JavaVersion.VERSION_11
   }
   kotlinOptions {
-    jvmTarget = '1.8'
+    jvmTarget = '11'
   }
   buildFeatures {
     compose true
   }
   composeOptions {
-    kotlinCompilerExtensionVersion compose_version
+    kotlinCompilerExtensionVersion "1.3.2"
   }
   packagingOptions {
     resources {
       excludes += '/META-INF/{AL2.0,LGPL2.1}'
     }
   }
+  namespace 'com.example.testapp'
 }
 
 dependencies {
-  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
+  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.2")
   implementation("com.ionspin.kotlin:bignum:0.3.3")
   implementation("com.ionspin.kotlin:bignum-serialization-kotlinx:0.3.3")
   implementation("io.ktor:ktor-client-core:$ktor_version")
   implementation("io.ktor:ktor-client-okhttp:$ktor_version")
-  implementation 'androidx.core:core-ktx:1.7.0'
-  implementation "androidx.compose.ui:ui:$compose_version"
+  implementation 'androidx.core:core-ktx:1.9.0'
   implementation "androidx.compose.material:material:$compose_version"
+  implementation "androidx.compose.ui:ui:$compose_version"
   implementation "androidx.compose.ui:ui-tooling-preview:$compose_version"
-  implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.3.1'
-  implementation 'androidx.activity:activity-compose:1.3.1'
+  implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.1'
+  implementation 'androidx.activity:activity-compose:1.6.0'
 //  testImplementation 'junit:junit:4.13.2'
 //  androidTestImplementation 'androidx.test.ext:junit:1.1.3'
 //  androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
