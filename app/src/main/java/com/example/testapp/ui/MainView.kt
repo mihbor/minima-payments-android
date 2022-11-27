@@ -16,8 +16,8 @@ import com.example.testapp.ui.theme.TestAppTheme
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
 import kotlinx.coroutines.launch
-import minima.Balance
-import minima.TokenDescriptor
+import kotlinx.serialization.json.JsonPrimitive
+import ltd.mbor.minimak.Balance
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -69,7 +69,7 @@ fun MainView(
       var expanded by remember { mutableStateOf(false) }
       ExposedDropdownMenuBox(expanded, { expanded = !expanded }) {
         OutlinedTextField(
-          value = balances[tokenId]?.let { (it.token?.name ?: "Minima") + " [${it.sendable.toPlainString()}]" } ?: "",
+          value = balances[tokenId]?.let { (it.tokenName ?: "Minima") + " [${it.sendable.toPlainString()}]" } ?: "",
           {},
           modifier = Modifier.fillMaxWidth(),
           readOnly = true,
@@ -83,9 +83,9 @@ fun MainView(
         ExposedDropdownMenu(expanded, { expanded = false }) {
           balances.values.forEach {
             DropdownMenuItem(enabled = !isReaderMode && it.sendable > ZERO, onClick = {
-              setTokenId(it.tokenid)
+              setTokenId(it.tokenId)
             }) {
-              Text(it.token?.name ?: "Minima")
+              Text(it.tokenName ?: "Minima")
               Text(" [${it.sendable.toPlainString()}]")
             }
           }
@@ -123,9 +123,9 @@ fun MainView(
 }
 
 private val previewBalances = listOf(
-  Balance("0x00", null, BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, 1),
-  Balance("0x01234567890", TokenDescriptor("test"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, 1),
-).associateBy { it.tokenid }
+  Balance("0x00", JsonPrimitive(null), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, "1"),
+  Balance("0x01234567890", JsonPrimitive("test"), BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ONE, "1"),
+).associateBy { it.tokenId }
 
 @Preview(showBackground = true)
 @Composable

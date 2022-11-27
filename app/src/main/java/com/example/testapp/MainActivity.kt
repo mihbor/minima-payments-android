@@ -16,10 +16,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.example.testapp.minima.Output
-import com.example.testapp.minima.getAddress
-import com.example.testapp.minima.importTx
-import com.example.testapp.minima.json
 import com.example.testapp.ui.ChannelRequestReceived
 import com.example.testapp.ui.ChannelRequestSent
 import com.example.testapp.ui.MainView
@@ -34,6 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonArray
+import ltd.mbor.minimak.*
 
 
 // Recommend NfcAdapter flags for reading from other Android devices. Indicates that this
@@ -71,15 +68,16 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
     super.onCreate(savedInstanceState)
 
     intent?.data?.let{ uri ->
+      Log.i(TAG, uri.toString())
       val action = uri.path
-      uri.getQueryParameter("uid")?.let { initMDS(it, uri.host ?: "localhost", uri.port) }
       if (action == "/emit") {
-        uri.getQueryParameter("address")?.let { address = it }
-        uri.getQueryParameter("token")?.let { tokenId = it }
-        uri.getQueryParameter("amount")?.toBigDecimalOrNull()?.let{ amount = it }
         scope.launch { emitReceive(address) }
       } else enableReaderMode()
-      Log.i(TAG, uri.toString())
+
+      uri.getQueryParameter("uid")?.let { initMDS(it, uri.host ?: "localhost", uri.port) }
+      uri.getQueryParameter("address")?.let { address = it }
+      uri.getQueryParameter("token")?.let { tokenId = it }
+      uri.getQueryParameter("amount")?.toBigDecimalOrNull()?.let{ amount = it }
     } ?: enableReaderMode()
     setContent {
       TestAppTheme {
@@ -100,7 +98,7 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
               inited = inited,
               uid = uid,
               setUid = this::initMDS,
-              balances = balances.associateBy { it.tokenid },
+              balances = balances.associateBy { it.tokenId },
               address = address,
               amount = amount,
               tokenId = tokenId,
@@ -144,7 +142,7 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
   private fun emitReceive(address: String? = null) {
     disableReaderMode()
     scope.launch {
-      this@MainActivity.address = address ?: getAddress()
+      this@MainActivity.address = address ?: MDS.getAddress()
       applicationContext.sendDataToService("$address;$tokenId;${amount.toPlainString()}")
     }
   }
@@ -170,9 +168,9 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
       Log.i(TAG, "TXN_REQUEST received, updateTxLength: ${updateTxText.length}, settleTxLength: ${settleTxText.length}")
       scope.launch {
         updateTx = newTxId().let{
-          it to importTx(it, updateTxText)!!.also { updateTx ->
-            settleTx = newTxId().let { it to importTx(it, settleTxText)!! }
-            requestReceivedOnChannel = getChannel(updateTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }.first().address)
+          it to MDS.importTx(it, updateTxText).also { updateTx ->
+            settleTx = newTxId().let { it to MDS.importTx(it, settleTxText) }
+            requestReceivedOnChannel = getChannel(updateTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Coin>(it) }.first().address)
           }
         }
       }

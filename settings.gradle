@@ -10,6 +10,13 @@ dependencyResolutionManagement {
   repositories {
     google()
     mavenCentral()
+    maven {
+      url = "https://maven.pkg.github.com/mihbor/MinimaK"
+      credentials {
+        username = getProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
+        password = getProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+      }
+    }
   }
 }
 rootProject.name = "MiniPay"

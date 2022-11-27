@@ -2,13 +2,11 @@ package com.example.testapp
 
 import android.util.Log
 import androidx.compose.runtime.*
-import com.example.testapp.minima.*
-import com.example.testapp.minima.State
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import getChannel
 import kotlinx.serialization.json.*
-import minima.Balance
-import minima.Coin
+import ltd.mbor.minimak.*
+import ltd.mbor.minimak.State
 import updateChannel
 import updateChannelStatus
 import java.security.SecureRandom
@@ -27,12 +25,12 @@ suspend fun initMDS(uid: String, host: String, port: Int) {
     when(msg.jsonObject["event"]?.jsonPrimitive?.content) {
       "inited" -> {
         if (MDS.logging) Log.i(TAG, "Connected to Minima.")
-        balances.addAll(getBalances())
-        blockNumber = getBlockNumber()
+        balances.addAll(MDS.getBalances())
+        blockNumber = MDS.getBlockNumber()
         inited = true
       }
       "NEWBALANCE" -> {
-        val newBalances = getBalances()
+        val newBalances = MDS.getBalances()
         balances.clear()
         balances.addAll(newBalances)
       }
@@ -46,17 +44,17 @@ suspend fun initMDS(uid: String, host: String, port: Int) {
 suspend fun withChange(tokenId: String, amount: BigDecimal): Pair<List<Coin>, List<Output>> {
   val inputs = mutableListOf<Coin>()
   val outputs = mutableListOf<Output>()
-  val coins = getCoins(tokenId = tokenId, sendable = true).ofAtLeast(amount)
+  val coins = MDS.getCoins(tokenId = tokenId, sendable = true).ofAtLeast(amount)
   coins.forEach { inputs.add(it) }
-  val change = coins.sumOf { it.tokenamount ?: it.amount } - amount
-  if (change > BigDecimal.ZERO) outputs.add(Output(newAddress(), change, tokenId))
+  val change = coins.sumOf { it.tokenAmount } - amount
+  if (change > BigDecimal.ZERO) outputs.add(Output(MDS.newAddress(), change, tokenId))
   return inputs to outputs
 }
 
 fun List<Coin>.ofAtLeast(amount: BigDecimal): List<Coin> {
-  return firstOrNull { (it.tokenamount ?: it.amount) >= amount }
+  return firstOrNull { it.tokenAmount >= amount }
     ?.let{ listOf(it) }
-    ?: (listOf(last()) + take(size-1).ofAtLeast(amount - (last().tokenamount ?: last().amount)))
+    ?: (listOf(last()) + take(size-1).ofAtLeast(amount - last().tokenAmount))
 }
 
 fun <T> Iterable<T>.sumOf(selector: (T) -> BigDecimal) = fold(BigDecimal.ZERO) { acc, item -> acc + selector(item) }
@@ -65,9 +63,9 @@ suspend fun send(toAddress: String, amount: BigDecimal, tokenId: String): Boolea
   val txnId = newTxId()
   val (inputs, outputs) = withChange(tokenId, amount)
   val txncreator = "txncreate id:$txnId;" +
-    inputs.map{ "txninput id:$txnId coinid:${it.coinid};"}.joinToString("") +
+    inputs.map{ "txninput id:$txnId coinid:${it.coinId};"}.joinToString("") +
     "txnoutput id:$txnId amount:${amount.toPlainString()} address:$toAddress tokenid:$tokenId;" +
-    outputs.map{ "txnoutput id:$txnId amount:${it.amount.toPlainString()} address:${it.address} tokenid:${it.tokenid};"}.joinToString("") +
+    outputs.map{ "txnoutput id:$txnId amount:${it.amount.toPlainString()} address:${it.address} tokenid:${it.tokenId};"}.joinToString("") +
     "txnsign id:$txnId publickey:auto;" +
     "txnpost id:$txnId auto:true;" +
     "txndelete id:$txnId;"
@@ -84,8 +82,8 @@ suspend fun send(toAddress: String, amount: BigDecimal, tokenId: String): Boolea
 
 suspend fun importAndPost(tx: String): JsonElement? {
   val txId = newTxId()
-  importTx(txId, tx)
-  return post(txId)
+  MDS.importTx(txId, tx)
+  return MDS.post(txId)
 }
 
 suspend fun ChannelState.triggerSettlement(): ChannelState {
@@ -109,12 +107,12 @@ suspend fun ChannelState.completeSettlement(): ChannelState {
 suspend fun requestViaChannel(amount: BigDecimal, channel: ChannelState) = sendViaChannel(-amount, channel)
 
 suspend fun sendViaChannel(amount: BigDecimal, channel: ChannelState): Pair<String, String> {
-  val currentSettlementTx = importTx(newTxId(), channel.settlementTx)!!
-  val input = json.decodeFromJsonElement<Input>(currentSettlementTx["inputs"]!!.jsonArray.first())
+  val currentSettlementTx = MDS.importTx(newTxId(), channel.settlementTx)
+  val input = json.decodeFromJsonElement<Coin>(currentSettlementTx["inputs"]!!.jsonArray.first())
   val state = currentSettlementTx["state"]!!.jsonArray.find{ it.jsonObject["port"]!!.jsonPrimitive.int == 99 }!!.jsonObject["data"]!!.jsonPrimitive.content
   val updateTxnId = newTxId()
   val updatetxncreator = "txncreate id:$updateTxnId;" +
-    "txninput id:$updateTxnId address:${input.address} amount:${input.amount} tokenid:${input.tokenid} floating:true;" +
+    "txninput id:$updateTxnId address:${input.address} amount:${input.amount} tokenid:${input.tokenId} floating:true;" +
     "txnstate id:$updateTxnId port:99 value:${state.toInt() + 1};" +
     "txnoutput id:$updateTxnId amount:${input.amount} address:${input.address};" +
     "txnsign id:$updateTxnId publickey:${channel.myUpdateKey};" +
@@ -122,7 +120,7 @@ suspend fun sendViaChannel(amount: BigDecimal, channel: ChannelState): Pair<Stri
   val updateTxn = MDS.cmd(updatetxncreator)?.jsonArray?.last()!!.jsonObject["response"]!!.jsonObject["data"]!!.jsonPrimitive.content
   val settleTxnId = newTxId()
   val settletxncreator = "txncreate id:$settleTxnId;" +
-    "txninput id:$settleTxnId address:${input.address} amount:${input.amount} tokenid:${input.tokenid} floating:true;" +
+    "txninput id:$settleTxnId address:${input.address} amount:${input.amount} tokenid:${input.tokenId} floating:true;" +
     "txnstate id:$settleTxnId port:99 value:${state.toInt() + 1};" +
     (if(channel.myBalance - amount > BigDecimal.ZERO)
       "txnoutput id:$settleTxnId amount:${(channel.myBalance - amount).toPlainString()} address:${channel.myAddress};"
@@ -142,15 +140,15 @@ suspend fun sendViaChannel(amount: BigDecimal, channel: ChannelState): Pair<Stri
 }
 
 suspend fun signAndExportTx(id: Int, key: String): String {
-  signTx(id, key)
-  return exportTx(id)
+  MDS.signTx(id, key)
+  return MDS.exportTx(id)
 }
 
 suspend fun ChannelState.acceptRequest(updateTx: Pair<Int, JsonObject>, settleTx: Pair<Int, JsonObject>): Pair<String, String> {
   val sequenceNumber = settleTx.second["state"]!!.jsonArray.map { json.decodeFromJsonElement<State>(it) }.find { it.port == 99 }?.data?.toInt()
 
-  val outputs = settleTx.second["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }
-  val channelBalance = outputs.find { it.miniaddress == myAddress }!!.amount to outputs.find { it.miniaddress == counterPartyAddress }!!.amount
+  val outputs = settleTx.second["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Coin>(it) }
+  val channelBalance = outputs.find { it.miniAddress == myAddress }!!.amount to outputs.find { it.miniAddress == counterPartyAddress }!!.amount
 
   val signedUpdateTx = signAndExportTx(updateTx.first, myUpdateKey)
   val signedSettleTx = signAndExportTx(settleTx.first, mySettleKey)
@@ -162,13 +160,13 @@ suspend fun ChannelState.acceptRequest(updateTx: Pair<Int, JsonObject>, settleTx
 
 suspend fun channelUpdateAck(updateTxText: String, settleTxText: String) {
 
-  importTx(newTxId(), updateTxText)!!.also { updateTx ->
-    val settleTx = importTx(newTxId(), settleTxText)!!
+  MDS.importTx(newTxId(), updateTxText).also { updateTx ->
+    val settleTx = MDS.importTx(newTxId(), settleTxText)
     val channel = getChannel(updateTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }.first().address)!!
     val sequenceNumber = settleTx["state"]!!.jsonArray.map { json.decodeFromJsonElement<State>(it) }.find { it.port == 99 }?.data?.toInt()!!
 
-    val outputs = settleTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }
-    val channelBalance = outputs.find { it.miniaddress == channel.myAddress }!!.amount to outputs.find { it.miniaddress == channel.counterPartyAddress }!!.amount
+    val outputs = settleTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Coin>(it) }
+    val channelBalance = outputs.find { it.miniAddress == channel.myAddress }!!.amount to outputs.find { it.miniAddress == channel.counterPartyAddress }!!.amount
     updateChannel(channel, channelBalance, sequenceNumber, updateTxText, settleTxText)
   }
 }

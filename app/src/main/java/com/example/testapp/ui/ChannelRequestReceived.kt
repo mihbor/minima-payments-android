@@ -6,22 +6,22 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.testapp.*
-import com.example.testapp.minima.Output
-import com.example.testapp.minima.json
 import com.example.testapp.ui.theme.TestAppTheme
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonArray
+import ltd.mbor.minimak.Coin
+import ltd.mbor.minimak.json
 
 @Composable
 fun ChannelRequestReceived(channel: ChannelState, updateTx: Pair<Int, JsonObject>, settleTx: Pair<Int, JsonObject>, activity: MainActivity?, dismiss: () -> Unit) {
 
   var accepting by remember { mutableStateOf(false) }
   var preparingResponse by remember { mutableStateOf(false) }
-  val outputs = settleTx.second["outputs"]?.jsonArray?.map { json.decodeFromJsonElement<Output>(it) }
-  val myOutput = outputs?.find { it.miniaddress == channel.myAddress }
+  val outputs = settleTx.second["outputs"]?.jsonArray?.map { json.decodeFromJsonElement<Coin>(it) }
+  val myOutput = outputs?.find { it.miniAddress == channel.myAddress }
   val balanceChange = channel.myBalance - (myOutput?.amount ?: ZERO)
 
   Column {

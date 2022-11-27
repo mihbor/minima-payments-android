@@ -1,11 +1,11 @@
 import com.example.testapp.ChannelState
-import com.example.testapp.minima.MDS
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import ltd.mbor.minimak.MDS
 import java.text.SimpleDateFormat
 
 suspend fun createDB() {

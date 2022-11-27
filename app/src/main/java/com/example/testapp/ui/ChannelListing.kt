@@ -15,12 +15,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.testapp.*
-import com.example.testapp.minima.getCoins
 import com.example.testapp.ui.theme.TestAppTheme
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import getChannels
 import kotlinx.coroutines.launch
-import minima.Coin
+import ltd.mbor.minimak.Coin
+import ltd.mbor.minimak.MDS
+import ltd.mbor.minimak.getCoins
 import updateChannelStatus
 
 
@@ -98,7 +99,7 @@ fun ChannelTable(
 private fun loadChannels(channels: MutableList<ChannelState>) {
   scope.launch {
     val newChannels = getChannels().map { channel ->
-      val eltooCoins = getCoins(address = channel.eltooAddress)
+      val eltooCoins = MDS.getCoins(address = channel.eltooAddress)
       eltooScriptCoins.put(channel.eltooAddress, eltooCoins)
       if (channel.status == "OPEN" && eltooCoins.isNotEmpty()) updateChannelStatus(channel, "TRIGGERED")
       else if (channel.status in listOf("TRIGGERED", "UPDATED") && eltooCoins.isEmpty()) updateChannelStatus(channel, "SETTLED")
@@ -124,7 +125,7 @@ fun PreviewChannelTable() {
     Column {
       ChannelTable(
         listOf(fakeChannel, fakeChannel.copy(status = "TRIGGERED", eltooAddress = "Mx999", sequenceNumber = 3, updateTx = "abc")),
-        mapOf("Mx999" to listOf(Coin("", BigDecimal.ONE, coinid = "", storestate = true, tokenid = "0x00", created = "100"))),
+        mapOf("Mx999" to listOf(Coin(address = "", miniAddress = "", amount = BigDecimal.ONE, coinId = "", storeState = true, tokenId = "0x00", created = "100", state = emptyList()))),
         null,
         {}
       ) { _, _ -> }
