@@ -1,25 +1,50 @@
 package com.example.testapp.ui
 
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.*
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.Button
+import androidx.compose.material.OutlinedTextField
+import androidx.compose.material.Switch
+import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.testapp.*
 import com.example.testapp.ui.theme.TestAppTheme
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.common.BitMatrix
+import com.google.zxing.qrcode.QRCodeWriter
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import ltd.mbor.minimak.Balance
 
-@OptIn(ExperimentalMaterialApi::class)
+fun encodeAsBitmap(str: String): Bitmap {
+  val writer = QRCodeWriter()
+  val bitMatrix: BitMatrix = writer.encode(str, BarcodeFormat.QR_CODE, 800, 800)
+  val w: Int = bitMatrix.getWidth()
+  val h: Int = bitMatrix.getHeight()
+  val pixels = IntArray(w * h)
+  for (y in 0 until h) {
+    for (x in 0 until w) {
+      pixels[y * w + x] = if (bitMatrix.get(x, y)) Color.BLACK else Color.WHITE
+    }
+  }
+  val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+  bitmap.setPixels(pixels, 0, w, 0, 0, w, h)
+  return bitmap
+}
+
 @Composable
 fun MainView(
   inited: Boolean,
@@ -27,28 +52,31 @@ fun MainView(
   setUid: (String) -> Unit,
   balances: Map<String, Balance>,
   address: String,
+  setAddress: (String) -> Unit,
   amount: BigDecimal,
+  setAmount: (BigDecimal?) -> Unit,
   tokenId: String,
   setTokenId: (String) -> Unit,
-  isReaderMode: Boolean,
-  setAmount: (BigDecimal?) -> Unit,
+  isSending: Boolean,
   startEmitting: () -> Unit,
   stopEmitting: () -> Unit,
   setRequestSentOnChannel: (ChannelState) -> Unit,
   activity: MainActivity?
 ) {
-
   var uidInput by remember { mutableStateOf(uid) }
+  var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+  if (address.isNotBlank()) {
+    bitmap = encodeAsBitmap("$address;${amount.toPlainString()};$tokenId").asImageBitmap()
+  }
+
   Column {
     Row {
       Text("MiniDApp UID:")
     }
     Row {
       OutlinedTextField(value = uidInput,
-        modifier = Modifier
-          .width(400.dp)
-          .padding(1.dp),
-        textStyle = TextStyle(fontSize = (20.sp)),
+        modifier = Modifier.fillMaxWidth(),
+//        textStyle = TextStyle(fontSize = (16.sp)),
         onValueChange = { uidInput = it }
       )
     }
@@ -62,39 +90,15 @@ fun MainView(
     if (inited) {
       Row {
         Text("Scan")
-        Switch(checked = !isReaderMode, onCheckedChange = { if (isReaderMode) startEmitting() else stopEmitting() })
+        Switch(checked = !isSending, onCheckedChange = { if (isSending) startEmitting() else stopEmitting() })
         Text("Emit")
       }
-      OutlinedTextField(address, {}, enabled = !isReaderMode, modifier = Modifier.fillMaxWidth())
-      var expanded by remember { mutableStateOf(false) }
-      ExposedDropdownMenuBox(expanded, { expanded = !expanded }) {
-        OutlinedTextField(
-          value = balances[tokenId]?.let { (it.tokenName ?: "Minima") + " [${it.sendable.toPlainString()}]" } ?: "",
-          {},
-          modifier = Modifier.fillMaxWidth(),
-          readOnly = true,
-          enabled = !isReaderMode,
-          trailingIcon = {
-            ExposedDropdownMenuDefaults.TrailingIcon(
-              expanded = expanded
-            )
-          }
-        )
-        ExposedDropdownMenu(expanded, { expanded = false }) {
-          balances.values.forEach {
-            DropdownMenuItem(enabled = !isReaderMode && it.sendable > ZERO, onClick = {
-              setTokenId(it.tokenId)
-            }) {
-              Text(it.tokenName ?: "Minima")
-              Text(" [${it.sendable.toPlainString()}]")
-            }
-          }
-        }
-      }
+      OutlinedTextField(address, setAddress, enabled = true, modifier = Modifier.fillMaxWidth())
+      TokenSelect(true, balances, tokenId, setTokenId)
       Row {
         Log.i(TAG, "amount in MainView: $amount")
-        DecimalNumberField(amount, enabled = !isReaderMode, setValue = setAmount)
-        if (isReaderMode) {
+        DecimalNumberField(amount, enabled = true, setValue = setAmount)
+        if (isSending) {
           val context = LocalContext.current
           var sending by remember { mutableStateOf(false) }
           Button(
@@ -115,6 +119,11 @@ fun MainView(
           }
         }
       }
+      if (!isSending) {
+        Row{
+          bitmap?.let{ Image(bitmap = it, contentDescription = "Scan this QR code") }
+        }
+      }
       Row {
         ChannelListing(activity, setRequestSentOnChannel)
       }
@@ -131,7 +140,7 @@ private val previewBalances = listOf(
 @Composable
 fun ViewConsumer() {
   TestAppTheme {
-    MainView(true, "uid123", {}, previewBalances, "", ZERO, "0x00", {}, true, {}, {}, {}, {}, null)
+    MainView(true, "uid123", {}, previewBalances, "", {}, ZERO, {}, "0x00", {}, true, {}, {}, {}, null)
   }
 }
 
@@ -139,6 +148,6 @@ fun ViewConsumer() {
 @Composable
 fun ViewEmitter() {
   TestAppTheme {
-    MainView(true, "uid456", {}, previewBalances, "address", BigDecimal.ONE, "0x01234567890", {}, false, {}, {}, {}, {}, null)
+    MainView(true, "uid456", {}, previewBalances, "address", {}, BigDecimal.ONE, {}, "0x01234567890", {}, false, {}, {}, {}, null)
   }
 }

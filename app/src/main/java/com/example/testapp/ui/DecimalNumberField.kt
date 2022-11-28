@@ -4,9 +4,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.sp
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 
@@ -28,7 +26,7 @@ fun DecimalNumberField(
     }
   OutlinedTextField(
     value = text,
-    textStyle = TextStyle(fontSize = 10.sp),
+//    textStyle = TextStyle(fontSize = 12.sp),
     onValueChange = {
       if (it.isEmpty()) {
         setValue(min?.takeIf { it > BigDecimal.ZERO } ?: BigDecimal.ZERO)
