@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,9 @@ import com.google.zxing.common.BitMatrix
 import com.google.zxing.qrcode.QRCodeWriter
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
+import com.ionspin.kotlin.bignum.decimal.toBigDecimal
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import ltd.mbor.minimak.Balance
@@ -68,6 +72,7 @@ fun MainView(
   if (address.isNotBlank()) {
     bitmap = encodeAsBitmap("$address;${amount.toPlainString()};$tokenId").asImageBitmap()
   }
+  val context = LocalContext.current
 
   Column {
     Row {
@@ -99,7 +104,6 @@ fun MainView(
         Log.i(TAG, "amount in MainView: $amount")
         DecimalNumberField(amount, enabled = true, setValue = setAmount)
         if (isSending) {
-          val context = LocalContext.current
           var sending by remember { mutableStateOf(false) }
           Button(
             enabled = !sending && address.isNotBlank() && amount > ZERO && balances[tokenId]?.sendable?.let{ it >= amount } ?: false,
@@ -119,8 +123,29 @@ fun MainView(
           }
         }
       }
-      if (!isSending) {
-        Row{
+      Row{
+      if (isSending){
+        val scanLauncher = rememberLauncherForActivityResult(
+          contract = ScanContract(),
+          onResult = { result ->
+            Log.i(TAG, "scanned code: ${result.contents}")
+            result.contents.split(";").apply {
+              setAddress(getOrNull(0) ?: "")
+              setTokenId(getOrNull(1) ?: "")
+              setAmount(getOrNull(2)?.toBigDecimal())
+            }
+          }
+        )
+        Button(onClick = {
+          scanLauncher.launch(ScanOptions().apply {
+            setOrientationLocked(false)
+            setPrompt("")
+            setBeepEnabled(false)
+          })
+        }) {
+          Text(text = "Scan QR")
+        }
+      } else {
           bitmap?.let{ Image(bitmap = it, contentDescription = "Scan this QR code") }
         }
       }
