@@ -14,6 +14,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.example.testapp.ui.ChannelRequestReceived
@@ -32,10 +33,6 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonArray
 import ltd.mbor.minimak.*
 
-
-// Recommend NfcAdapter flags for reading from other Android devices. Indicates that this
-// activity is interested in NFC-A devices (including other Android devices), and that the
-// system should not check for the presence of NDEF-formatted data (e.g. Android Beam).
 val READER_FLAGS = NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
 
 const val TAG = "MainActivity"
@@ -43,7 +40,6 @@ const val TAG = "MainActivity"
 val scope = MainScope()
 
 class MainActivity : ComponentActivity(), CardReader.DataCallback {
-//  val nfcMessages = mutableStateListOf<NdefMessage>()
   var isReaderModeOn by mutableStateOf(true)
 
   var uid by mutableStateOf("")
@@ -79,8 +75,14 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
       uri.getQueryParameter("token")?.let { tokenId = it }
       uri.getQueryParameter("amount")?.toBigDecimalOrNull()?.let{ amount = it }
     } ?: enableReaderMode()
+    val action = when(intent?.data?.path) {
+      "/send" -> "send"
+      "/emit" -> "receive"
+      else -> "settings"
+    }
     setContent {
       TestAppTheme {
+        var view by remember{ mutableStateOf(action) }
         // A surface container using the 'background' color from the theme
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colors.background) {
           requestReceivedOnChannel?.let {
@@ -109,7 +111,9 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
               startEmitting = ::emitReceive,
               stopEmitting = ::enableReaderMode,
               setRequestSentOnChannel = { requestSentOnChannel = it },
-              activity = this
+              activity = this,
+              view = view,
+              setView = { view = it }
             )
           }
         }

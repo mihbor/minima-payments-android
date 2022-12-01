@@ -6,14 +6,12 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.Button
-import androidx.compose.material.OutlinedTextField
-import androidx.compose.material.Switch
-import androidx.compose.material.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -65,7 +63,9 @@ fun MainView(
   startEmitting: () -> Unit,
   stopEmitting: () -> Unit,
   setRequestSentOnChannel: (ChannelState) -> Unit,
-  activity: MainActivity?
+  activity: MainActivity?,
+  view: String,
+  setView: (String) -> Unit
 ) {
   var uidInput by remember { mutableStateOf(uid) }
   var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
@@ -74,83 +74,203 @@ fun MainView(
   }
   val context = LocalContext.current
 
-  Column {
-    Row {
-      Text("MiniDApp UID:")
-    }
-    Row {
-      OutlinedTextField(value = uidInput,
-        modifier = Modifier.fillMaxWidth(),
-//        textStyle = TextStyle(fontSize = (16.sp)),
-        onValueChange = { uidInput = it }
+  var showNavMenu by remember{ mutableStateOf(false) }
+
+  fun toggleNavMenu() {
+    showNavMenu = !showNavMenu
+  }
+
+  Scaffold(
+    topBar = {
+      TopAppBar(
+        title = { Text("MiniPay") },
+        navigationIcon = {
+          IconButton(onClick = { toggleNavMenu() }) {
+            Icon(Icons.Filled.Menu, contentDescription = null)
+          }
+        }
       )
     }
-    Row {
-      Button(onClick = {
-        setUid(uidInput)
-      }){
-        Text("Update")
+  ) {
+    if (showNavMenu) {
+      Box(modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.TopStart)) {
+        DropdownMenu(
+          expanded = showNavMenu,
+          onDismissRequest = { showNavMenu = false }
+        ) {
+          DropdownMenuItem(onClick = {
+            setView("receive")
+            startEmitting()
+            showNavMenu = false
+          }, enabled = inited) {
+            Text("Receive")
+          }
+          DropdownMenuItem(onClick = {
+            setView("send")
+            stopEmitting()
+            showNavMenu = false
+          }, enabled = inited) {
+            Text("Send")
+          }
+          Divider()
+          DropdownMenuItem(onClick = { /* Handle send feedback! */ }, enabled = false) {
+            Text("Request Channel")
+          }
+          DropdownMenuItem(onClick = { /* Handle send feedback! */ }, enabled = false) {
+            Text("Fund Channel")
+          }
+          DropdownMenuItem(onClick = {
+            setView("channels")
+            showNavMenu = false
+          }, enabled = inited) {
+            Text("Channel Listing")
+          }
+          Divider()
+          DropdownMenuItem(onClick = {
+            setView("settings")
+            showNavMenu = false
+          }) {
+            Text("Settings")
+          }
+        }
       }
     }
-    if (inited) {
-      Row {
-        Text("Scan")
-        Switch(checked = !isSending, onCheckedChange = { if (isSending) startEmitting() else stopEmitting() })
-        Text("Emit")
+    when (view) {
+      "settings" -> Column(modifier = Modifier.padding(it)) {
+        Row{
+          Text("MiniDApp UID:")
+        }
+        Row{
+          OutlinedTextField(value = uidInput,
+            modifier = Modifier.fillMaxWidth(),
+            //        textStyle = TextStyle(fontSize = (16.sp)),
+            onValueChange = { uidInput = it }
+          )
+        }
+        Row{
+          Button(onClick = {
+            setUid(uidInput)
+          }){
+            Text("Update")
+          }
+        }
       }
-      OutlinedTextField(address, setAddress, enabled = true, modifier = Modifier.fillMaxWidth())
-      TokenSelect(true, balances, tokenId, setTokenId)
-      Row {
-        Log.i(TAG, "amount in MainView: $amount")
-        DecimalNumberField(amount, enabled = true, setValue = setAmount)
-        if (isSending) {
-          var sending by remember { mutableStateOf(false) }
-          Button(
-            enabled = !sending && address.isNotBlank() && amount > ZERO && balances[tokenId]?.sendable?.let{ it >= amount } ?: false,
-            onClick = {
-              sending = true
-              scope.launch {
-                val success = send(address, amount, tokenId)
-                sending = false
-                Toast.makeText(context, "Sending result: $success", Toast.LENGTH_LONG).show()
-                if (success) {
-                  setAmount(ZERO)
+      "receive" -> Column(modifier = Modifier.padding(it)) {
+        if (inited) {
+          OutlinedTextField(address, setAddress, enabled = true, modifier = Modifier.fillMaxWidth())
+          TokenSelect(true, balances, tokenId, setTokenId)
+          Row{
+            Log.i(TAG, "amount in MainView: $amount")
+            DecimalNumberField(amount, enabled = true, setValue = setAmount)
+            if (isSending) {
+              var sending by remember { mutableStateOf(false) }
+              Button(
+                enabled = !sending && address.isNotBlank() && amount > ZERO && balances[tokenId]?.sendable?.let{ it >= amount } ?: false,
+                onClick = {
+                  sending = true
+                  scope.launch {
+                    val success = send(address, amount, tokenId)
+                    sending = false
+                    Toast.makeText(context, "Sending result: $success", Toast.LENGTH_LONG).show()
+                    if (success) {
+                      setAmount(ZERO)
+                    }
+                  }
                 }
+              ) {
+                Text("Send!")
               }
             }
-          ) {
-            Text("Send!")
           }
-        }
-      }
-      Row{
-      if (isSending){
-        val scanLauncher = rememberLauncherForActivityResult(
-          contract = ScanContract(),
-          onResult = { result ->
-            Log.i(TAG, "scanned code: ${result.contents}")
-            result.contents.split(";").apply {
-              setAddress(getOrNull(0) ?: "")
-              setTokenId(getOrNull(1) ?: "")
-              setAmount(getOrNull(2)?.toBigDecimal())
+          Row{
+          if (isSending){
+            val scanLauncher = rememberLauncherForActivityResult(
+              contract = ScanContract(),
+              onResult = { result ->
+                Log.i(TAG, "scanned code: ${result.contents}")
+                result.contents.split(";").apply {
+                  setAddress(getOrNull(0) ?: "")
+                  setTokenId(getOrNull(1) ?: "")
+                  setAmount(getOrNull(2)?.toBigDecimal())
+                }
+              }
+            )
+            Button(onClick = {
+              scanLauncher.launch(ScanOptions().apply {
+                setOrientationLocked(false)
+                setPrompt("")
+                setBeepEnabled(false)
+              })
+            }) {
+              Text(text = "Scan QR")
+            }
+          } else {
+              bitmap?.let{ Image(bitmap = it, contentDescription = "Scan this QR code") }
             }
           }
-        )
-        Button(onClick = {
-          scanLauncher.launch(ScanOptions().apply {
-            setOrientationLocked(false)
-            setPrompt("")
-            setBeepEnabled(false)
-          })
-        }) {
-          Text(text = "Scan QR")
-        }
-      } else {
-          bitmap?.let{ Image(bitmap = it, contentDescription = "Scan this QR code") }
         }
       }
-      Row {
-        ChannelListing(activity, setRequestSentOnChannel)
+      "send" -> Column(modifier = Modifier.padding(it)) {
+        if (inited) {
+          OutlinedTextField(address, setAddress, enabled = true, modifier = Modifier.fillMaxWidth())
+          TokenSelect(true, balances, tokenId, setTokenId)
+          Row{
+            Log.i(TAG, "amount in MainView: $amount")
+            DecimalNumberField(amount, enabled = true, setValue = setAmount)
+            if (isSending) {
+              var sending by remember { mutableStateOf(false) }
+              Button(
+                enabled = !sending && address.isNotBlank() && amount > ZERO && balances[tokenId]?.sendable?.let{ it >= amount } ?: false,
+                onClick = {
+                  sending = true
+                  scope.launch {
+                    val success = send(address, amount, tokenId)
+                    sending = false
+                    Toast.makeText(context, "Sending result: $success", Toast.LENGTH_LONG).show()
+                    if (success) {
+                      setAmount(ZERO)
+                    }
+                  }
+                }
+              ) {
+                Text("Send!")
+              }
+            }
+          }
+          Row{
+          if (isSending){
+            val scanLauncher = rememberLauncherForActivityResult(
+              contract = ScanContract(),
+              onResult = { result ->
+                Log.i(TAG, "scanned code: ${result.contents}")
+                result.contents.split(";").apply {
+                  setAddress(getOrNull(0) ?: "")
+                  setTokenId(getOrNull(1) ?: "")
+                  setAmount(getOrNull(2)?.toBigDecimal())
+                }
+              }
+            )
+            Button(onClick = {
+              scanLauncher.launch(ScanOptions().apply {
+                setOrientationLocked(false)
+                setPrompt("")
+                setBeepEnabled(false)
+              })
+            }) {
+              Text(text = "Scan QR")
+            }
+          } else {
+              bitmap?.let{ Image(bitmap = it, contentDescription = "Scan this QR code") }
+            }
+          }
+        }
+      }
+      "channels" -> Column(modifier = Modifier.padding(it)) {
+        if (inited) {
+          Row {
+            ChannelListing(activity, setRequestSentOnChannel)
+          }
+        }
       }
     }
   }
@@ -163,16 +283,16 @@ private val previewBalances = listOf(
 
 @Preview(showBackground = true)
 @Composable
-fun ViewConsumer() {
+fun ViewSend() {
   TestAppTheme {
-    MainView(true, "uid123", {}, previewBalances, "", {}, ZERO, {}, "0x00", {}, true, {}, {}, {}, null)
+    MainView(true, "uid123", {}, previewBalances, "", {}, ZERO, {}, "0x00", {}, true, {}, {}, {}, null, "send", {})
   }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun ViewEmitter() {
+fun ViewRecieve() {
   TestAppTheme {
-    MainView(true, "uid456", {}, previewBalances, "address", {}, BigDecimal.ONE, {}, "0x01234567890", {}, false, {}, {}, {}, null)
+    MainView(true, "uid456", {}, previewBalances, "address", {}, BigDecimal.ONE, {}, "0x01234567890", {}, false, {}, {}, {}, null, "receive", {})
   }
 }

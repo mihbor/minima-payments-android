@@ -5,12 +5,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.Button
-import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,32 +26,18 @@ import updateChannelStatus
 
 @Composable
 fun ChannelListing(activity: MainActivity?, setRequestSentOnChannel: (ChannelState) -> Unit) {
-  var showChannels by remember { mutableStateOf(false) }
   val channels = remember { mutableStateListOf<ChannelState>() }
 
   LazyColumn {
     item {
       Row {
-        Button(
-          onClick = {
-            showChannels = !showChannels
-            if (showChannels) loadChannels(channels)
-          },
-          colors = ButtonDefaults.buttonColors(
-            backgroundColor = (if (showChannels) MaterialTheme.colors.primary else Color.Unspecified),
-          ),
+        Button(onClick = { loadChannels(channels) }
         ) {
-          Text("Channel listing")
-        }
-        if (showChannels) {
-          Button(onClick = { loadChannels(channels) }
-          ) {
-            Text("Refresh")
-          }
+          Text("Refresh")
         }
       }
     }
-    if (showChannels) item {
+    item {
       ChannelTable(channels, eltooScriptCoins, activity, setRequestSentOnChannel) { index, channel ->
         channels[index] = channel
       }
