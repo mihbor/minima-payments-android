@@ -243,7 +243,7 @@ fun MainView(
               contract = ScanContract(),
               onResult = { result ->
                 Log.i(TAG, "scanned code: ${result.contents}")
-                result.contents.split(";").apply {
+                result.contents?.split(";")?.apply {
                   setAddress(getOrNull(0) ?: "")
                   setTokenId(getOrNull(1) ?: "")
                   setAmount(getOrNull(2)?.toBigDecimal())

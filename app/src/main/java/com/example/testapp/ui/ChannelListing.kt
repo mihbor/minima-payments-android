@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -27,12 +28,18 @@ import updateChannelStatus
 @Composable
 fun ChannelListing(activity: MainActivity?, setRequestSentOnChannel: (ChannelState) -> Unit) {
   val channels = remember { mutableStateListOf<ChannelState>() }
+  LaunchedEffect("channels") {
+    channels.loadChannels()
+  }
 
   LazyColumn {
     item {
       Row {
-        Button(onClick = { loadChannels(channels) }
-        ) {
+        Button(onClick = {
+          scope.launch {
+            channels.loadChannels()
+          }
+        }) {
           Text("Refresh")
         }
       }
@@ -81,18 +88,16 @@ fun ChannelTable(
   }
 }
 
-private fun loadChannels(channels: MutableList<ChannelState>) {
-  scope.launch {
-    val newChannels = getChannels().map { channel ->
-      val eltooCoins = MDS.getCoins(address = channel.eltooAddress)
-      eltooScriptCoins.put(channel.eltooAddress, eltooCoins)
-      if (channel.status == "OPEN" && eltooCoins.isNotEmpty()) updateChannelStatus(channel, "TRIGGERED")
-      else if (channel.status in listOf("TRIGGERED", "UPDATED") && eltooCoins.isEmpty()) updateChannelStatus(channel, "SETTLED")
-      else channel
-    }
-    channels.clear()
-    channels.addAll(newChannels)
+suspend fun MutableList<ChannelState>.loadChannels() {
+  val newChannels = getChannels().map { channel ->
+    val eltooCoins = MDS.getCoins(address = channel.eltooAddress)
+    eltooScriptCoins.put(channel.eltooAddress, eltooCoins)
+    if (channel.status == "OPEN" && eltooCoins.isNotEmpty()) updateChannelStatus(channel, "TRIGGERED")
+    else if (channel.status in listOf("TRIGGERED", "UPDATED") && eltooCoins.isEmpty()) updateChannelStatus(channel, "SETTLED")
+    else channel
   }
+  clear()
+  addAll(newChannels)
 }
 
 @Composable
