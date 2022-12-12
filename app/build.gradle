@@ -4,11 +4,23 @@ plugins {
   id "org.jetbrains.kotlin.plugin.serialization" version "1.6.10"
 }
 
+repositories {
+  google()
+  mavenCentral()
+  maven {
+    url = "https://maven.pkg.github.com/mihbor/MinimaK"
+    credentials {
+      username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
+      password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+    }
+  }
+}
+
 android {
   compileSdk 33
 
   defaultConfig {
-    applicationId "com.example.testapp"
+    applicationId "ltd.mbor.minipay"
     minSdk 24
     targetSdk 33
     versionCode 1
@@ -18,6 +30,7 @@ android {
     vectorDrawables {
       useSupportLibrary true
     }
+    archivesBaseName = applicationId
   }
 
   buildTypes {
@@ -53,14 +66,15 @@ dependencies {
   implementation("com.ionspin.kotlin:bignum-serialization-kotlinx:0.3.3")
   implementation("io.ktor:ktor-client-core:$ktor_version")
   implementation("io.ktor:ktor-client-okhttp:$ktor_version")
-  implementation 'androidx.core:core-ktx:1.9.0'
-  implementation "androidx.compose.material:material:$compose_version"
-  implementation "androidx.compose.ui:ui:$compose_version"
-  implementation "androidx.compose.ui:ui-tooling-preview:$compose_version"
-  implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.1'
-  implementation 'androidx.activity:activity-compose:1.6.0'
-  implementation 'com.google.zxing:core:3.5.1'
-  implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+  implementation("androidx.core:core-ktx:1.9.0")
+  implementation("androidx.compose.material:material:$compose_version")
+  implementation("androidx.compose.ui:ui:$compose_version")
+  implementation("androidx.compose.ui:ui-tooling-preview:$compose_version")
+  implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.5.1")
+  implementation("androidx.activity:activity-compose:1.6.0")
+  implementation("com.google.zxing:core:3.5.1")
+  implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+  implementation("dev.gitlive:firebase-firestore-android:1.6.2")
 
   implementation("ltd.mbor:minimak:0.1-SNAPSHOT")
 
@@ -68,10 +82,10 @@ dependencies {
 //  androidTestImplementation 'androidx.test.ext:junit:1.1.3'
 //  androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
 //  androidTestImplementation "androidx.compose.ui:ui-test-junit4:$compose_version"
-  debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"
-  debugImplementation "androidx.compose.ui:ui-test-manifest:$compose_version"
+  debugImplementation("androidx.compose.ui:ui-tooling:$compose_version")
+  debugImplementation("androidx.compose.ui:ui-test-manifest:$compose_version")
 }
 
 configurations.all {
-  resolutionStrategy.cacheChangingModulesFor(1, "minutes")
+  resolutionStrategy.cacheChangingModulesFor(1, "hours")
 }
