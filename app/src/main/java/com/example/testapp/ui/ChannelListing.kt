@@ -32,21 +32,23 @@ fun ChannelListing(activity: MainActivity?, setRequestSentOnChannel: (ChannelSta
     channels.loadChannels()
   }
 
-  LazyColumn {
-    item {
-      Row {
-        Button(onClick = {
-          scope.launch {
-            channels.loadChannels()
+  if (inited) {
+    LazyColumn {
+      item {
+        Row {
+          Button(onClick = {
+            scope.launch {
+              channels.loadChannels()
+            }
+          }) {
+            Text("Refresh")
           }
-        }) {
-          Text("Refresh")
         }
       }
-    }
-    item {
-      ChannelTable(channels, eltooScriptCoins, activity, setRequestSentOnChannel) { index, channel ->
-        channels[index] = channel
+      item {
+        ChannelTable(channels, eltooScriptCoins, activity, setRequestSentOnChannel) { index, channel ->
+          channels[index] = channel
+        }
       }
     }
   }

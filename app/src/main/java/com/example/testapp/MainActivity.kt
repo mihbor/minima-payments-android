@@ -107,7 +107,6 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
               setAmount = ::updateAmount,
               tokenId = tokenId,
               setTokenId = { tokenId = it },
-              isSending = isReaderModeOn,
               startEmitting = ::emitReceive,
               stopEmitting = ::enableReaderMode,
               setRequestSentOnChannel = { requestSentOnChannel = it },
