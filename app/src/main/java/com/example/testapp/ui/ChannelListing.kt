@@ -15,19 +15,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.testapp.*
+import com.example.testapp.logic.eltooScriptCoins
+import com.example.testapp.logic.getChannels
+import com.example.testapp.logic.updateChannelStatus
 import com.example.testapp.ui.theme.TestAppTheme
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
-import getChannels
 import kotlinx.coroutines.launch
 import ltd.mbor.minimak.Coin
 import ltd.mbor.minimak.MDS
 import ltd.mbor.minimak.getCoins
-import updateChannelStatus
-
 
 @Composable
-fun ChannelListing(activity: MainActivity?, setRequestSentOnChannel: (ChannelState) -> Unit) {
-  val channels = remember { mutableStateListOf<ChannelState>() }
+fun ChannelListing(activity: MainActivity?, setRequestSentOnChannel: (Channel) -> Unit) {
+  val channels = remember { mutableStateListOf<Channel>() }
   LaunchedEffect("channels") {
     channels.loadChannels()
   }
@@ -56,11 +56,11 @@ fun ChannelListing(activity: MainActivity?, setRequestSentOnChannel: (ChannelSta
 
 @Composable
 fun ChannelTable(
-  channels: List<ChannelState>,
+  channels: List<Channel>,
   eltooScriptCoins: Map<String, List<Coin>>,
   activity: MainActivity?,
-  setRequestSentOnChannel: (ChannelState) -> Unit,
-  updateChannel: (Int, ChannelState) -> Unit
+  setRequestSentOnChannel: (Channel) -> Unit,
+  updateChannel: (Int, Channel) -> Unit
 ) {
 
   Row {
@@ -76,8 +76,8 @@ fun ChannelTable(
       Text(channel.id.toString(), Modifier.width(30.dp), fontSize = 10.sp)
       Text(channel.status, Modifier.width(60.dp), fontSize = 10.sp)
       Text(channel.sequenceNumber.toString(), Modifier.width(50.dp), fontSize = 10.sp)
-      Text(channel.myBalance.toPlainString(), Modifier.width(50.dp), fontSize = 10.sp)
-      Text(channel.counterPartyBalance.toPlainString(), Modifier.width(50.dp), fontSize = 10.sp)
+      Text(channel.my.balance.toPlainString(), Modifier.width(50.dp), fontSize = 10.sp)
+      Text(channel.their.balance.toPlainString(), Modifier.width(50.dp), fontSize = 10.sp)
       Column(Modifier.width(250.dp)) {
         if (channel.status == "OPEN") {
           ChannelTransfers(channel, activity, setRequestSentOnChannel)
@@ -90,7 +90,7 @@ fun ChannelTable(
   }
 }
 
-suspend fun MutableList<ChannelState>.loadChannels() {
+suspend fun MutableList<Channel>.loadChannels() {
   val newChannels = getChannels().map { channel ->
     val eltooCoins = MDS.getCoins(address = channel.eltooAddress)
     eltooScriptCoins.put(channel.eltooAddress, eltooCoins)

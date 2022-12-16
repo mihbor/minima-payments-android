@@ -9,7 +9,12 @@ import ltd.mbor.minimak.Balance
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun TokenSelect(enabled: Boolean, balances: Map<String, Balance>, tokenId: String, setTokenId: (String) -> Unit) {
+fun TokenSelect(
+  tokenId: String,
+  balances: Map<String, Balance>,
+  enabled: Boolean = true,
+  setTokenId: (String) -> Unit
+) {
   var expanded by remember { mutableStateOf(false) }
   ExposedDropdownMenuBox(expanded, { expanded = !expanded }) {
     OutlinedTextField(

@@ -36,10 +36,16 @@ fun Menu(inited: Boolean, showNavMenu: Boolean, setView: (String) -> Unit, start
           Text("Send")
         }
         Divider()
-        DropdownMenuItem(onClick = { /* Handle send feedback! */ }, enabled = false) {
+        DropdownMenuItem(onClick = {
+          setView("request-channel")
+          setShowNavMenu(false)
+        }, enabled = inited) {
           Text("Request Channel")
         }
-        DropdownMenuItem(onClick = { /* Handle send feedback! */ }, enabled = false) {
+        DropdownMenuItem(onClick = {
+          setView("fund-channel")
+          setShowNavMenu(false)
+        }, enabled = inited) {
           Text("Fund Channel")
         }
         DropdownMenuItem(onClick = {

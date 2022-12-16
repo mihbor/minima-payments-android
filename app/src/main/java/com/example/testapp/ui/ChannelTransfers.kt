@@ -12,13 +12,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.testapp.*
+import com.example.testapp.logic.request
 import com.example.testapp.ui.theme.TestAppTheme
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ONE
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
 import kotlinx.coroutines.launch
 
 @Composable
-fun ChannelTransfers(channel: ChannelState, activity: MainActivity?, setRequestSentOnChannel: (ChannelState) -> Unit) {
+fun ChannelTransfers(channel: Channel, activity: MainActivity?, setRequestSentOnChannel: (Channel) -> Unit) {
 //  if (channel.myBalance > ZERO) Row {
 //    var amount by remember { mutableStateOf(ZERO) }
 //    DecimalNumberField(amount, Modifier.width(60.dp).height(50.dp), min = ZERO, max = channel.myBalance) { it?.let { amount = it } }
@@ -32,18 +33,18 @@ fun ChannelTransfers(channel: ChannelState, activity: MainActivity?, setRequestS
 //      Text("Send via channel", fontSize = 10.sp)
 //    }
 //  }
-  if (channel.counterPartyBalance > ZERO) {
+  if (channel.their.balance > ZERO) {
     var amount by remember { mutableStateOf(ZERO) }
     var preparingRequest by remember { mutableStateOf(false) }
     DecimalNumberField(amount,
       Modifier
         .width(100.dp)
-        .height(50.dp), min = ZERO, max = channel.counterPartyBalance) { it?.let { amount = it } }
+        .height(50.dp), min = ZERO, max = channel.their.balance) { it?.let { amount = it } }
     Button(
       onClick = {
         preparingRequest = true
         scope.launch {
-          val (updateTx, settleTx) = requestViaChannel(amount, channel)
+          val (updateTx, settleTx) = channel.request(amount)
           activity?.apply {
             disableReaderMode()
             sendDataToService("TXN_REQUEST;$updateTx;$settleTx")
@@ -70,20 +71,29 @@ fun PreviewTransfers() {
   }
 }
 
-val fakeChannel = ChannelState(
+val fakeChannel = Channel(
   id = 1,
   sequenceNumber = 0,
   status = "OPEN",
-  myBalance = ONE,
-  counterPartyBalance = ONE,
-  myAddress = "Mx0123456789",
-  counterPartyAddress = "Mx1234567890",
-  myTriggerKey = "0x123",
-  myUpdateKey = "0x123",
-  mySettleKey = "0x123",
-  counterPartyTriggerKey = "0x123",
-  counterPartyUpdateKey = "0x123",
-  counterPartySettleKey = "0x123",
+  tokenId = "0x00",
+  my = Channel.Side(
+    balance = ONE,
+    address = "Mx0123456789",
+    keys = Channel.Keys(
+      trigger = "0x123",
+      update = "0x123",
+      settle = "0x123",
+    )
+  ),
+  their = Channel.Side(
+    balance = ONE,
+    address = "Mx1234567890",
+    keys = Channel.Keys(
+      trigger = "0x123",
+      update = "0x123",
+      settle = "0x123",
+    )
+  ),
   triggerTx = "",
   updateTx = "",
   settlementTx = "",

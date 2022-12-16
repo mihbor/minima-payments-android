@@ -8,7 +8,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.testapp.ChannelState
+import com.example.testapp.Channel
 import com.example.testapp.MainActivity
 import com.example.testapp.ui.theme.TestAppTheme
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
@@ -31,7 +31,7 @@ fun MainView(
   setTokenId: (String) -> Unit,
   startEmitting: () -> Unit,
   stopEmitting: () -> Unit,
-  setRequestSentOnChannel: (ChannelState) -> Unit,
+  setRequestSentOnChannel: (Channel) -> Unit,
   activity: MainActivity?,
   view: String,
   setView: (String) -> Unit
@@ -68,6 +68,12 @@ fun MainView(
       }
       "channels" -> Column(modifier = Modifier.padding(it)) {
         ChannelListing(activity, setRequestSentOnChannel)
+      }
+      "request-channel" -> Column(modifier = Modifier.padding(it)) {
+        RequestChannel(balances, activity, setRequestSentOnChannel)
+      }
+      "fund-channel" -> Column(modifier = Modifier.padding(it)) {
+        FundChannel(balances, activity, setRequestSentOnChannel)
       }
     }
   }

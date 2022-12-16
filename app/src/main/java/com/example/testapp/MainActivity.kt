@@ -17,6 +17,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.example.testapp.logic.getChannel
+import com.example.testapp.logic.initFirebase
 import com.example.testapp.ui.ChannelRequestReceived
 import com.example.testapp.ui.ChannelRequestSent
 import com.example.testapp.ui.MainView
@@ -25,7 +27,6 @@ import com.example.testapp.ui.toBigDecimalOrNull
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
-import getChannel
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
@@ -46,8 +47,8 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
   var address by mutableStateOf("")
   var tokenId by mutableStateOf("0x00")
   var amount by mutableStateOf(ZERO)
-  var requestReceivedOnChannel by mutableStateOf<ChannelState?>(null)
-  var requestSentOnChannel by mutableStateOf<ChannelState?>(null)
+  var requestReceivedOnChannel by mutableStateOf<Channel?>(null)
+  var requestSentOnChannel by mutableStateOf<Channel?>(null)
   var updateTx by mutableStateOf<Pair<Int, JsonObject>?>(null)
   var settleTx by mutableStateOf<Pair<Int, JsonObject>?>(null)
 
@@ -62,6 +63,7 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    initFirebase(applicationContext)
 
     intent?.data?.let{ uri ->
       Log.i(TAG, uri.toString())
@@ -100,7 +102,7 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
               inited = inited,
               uid = uid,
               setUid = this::initMDS,
-              balances = balances.associateBy { it.tokenId },
+              balances = balances,
               address = address,
               setAddress = { address = it},
               amount = amount,

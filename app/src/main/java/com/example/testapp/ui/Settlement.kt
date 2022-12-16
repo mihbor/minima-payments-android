@@ -6,13 +6,18 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
-import com.example.testapp.*
+import com.example.testapp.Channel
+import com.example.testapp.TAG
+import com.example.testapp.logic.completeSettlement
+import com.example.testapp.logic.postUpdate
+import com.example.testapp.logic.triggerSettlement
+import com.example.testapp.scope
 import com.example.testapp.ui.theme.TestAppTheme
 import kotlinx.coroutines.launch
 import ltd.mbor.minimak.Coin
 
 @Composable
-fun Settlement(channel: ChannelState, blockNumber: Int, eltooScriptCoins: List<Coin>, updateChannel: (ChannelState) -> Unit) {
+fun Settlement(channel: Channel, blockNumber: Int, eltooScriptCoins: List<Coin>, updateChannel: (Channel) -> Unit) {
 
   var settlementTriggering by remember { mutableStateOf(false) }
   var updatePosting by remember { mutableStateOf(false) }

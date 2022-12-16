@@ -2,7 +2,6 @@ package com.example.testapp.ui
 
 import android.graphics.Bitmap
 import android.graphics.Color
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import com.example.testapp.TAG
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.common.BitMatrix
 import com.google.zxing.qrcode.QRCodeWriter
@@ -51,9 +49,8 @@ fun Receive(
       bitmap = encodeAsBitmap("$address;${amount.toPlainString()};$tokenId").asImageBitmap()
     }
     OutlinedTextField(address, setAddress, enabled = true, modifier = Modifier.fillMaxWidth())
-    TokenSelect(true, balances, tokenId, setTokenId)
+    TokenSelect(tokenId, balances, true, setTokenId)
     Row{
-      Log.i(TAG, "amount in MainView: $amount")
       DecimalNumberField(amount, enabled = true, setValue = setAmount)
     }
     Row{

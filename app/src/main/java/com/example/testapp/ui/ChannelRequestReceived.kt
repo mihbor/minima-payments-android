@@ -5,7 +5,11 @@ import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.tooling.preview.Preview
-import com.example.testapp.*
+import com.example.testapp.Channel
+import com.example.testapp.MainActivity
+import com.example.testapp.logic.acceptRequest
+import com.example.testapp.scope
+import com.example.testapp.sendDataToService
 import com.example.testapp.ui.theme.TestAppTheme
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
 import kotlinx.coroutines.launch
@@ -16,13 +20,13 @@ import ltd.mbor.minimak.Coin
 import ltd.mbor.minimak.json
 
 @Composable
-fun ChannelRequestReceived(channel: ChannelState, updateTx: Pair<Int, JsonObject>, settleTx: Pair<Int, JsonObject>, activity: MainActivity?, dismiss: () -> Unit) {
+fun ChannelRequestReceived(channel: Channel, updateTx: Pair<Int, JsonObject>, settleTx: Pair<Int, JsonObject>, activity: MainActivity?, dismiss: () -> Unit) {
 
   var accepting by remember { mutableStateOf(false) }
   var preparingResponse by remember { mutableStateOf(false) }
   val outputs = settleTx.second["outputs"]?.jsonArray?.map { json.decodeFromJsonElement<Coin>(it) }
-  val myOutput = outputs?.find { it.miniAddress == channel.myAddress }
-  val balanceChange = channel.myBalance - (myOutput?.amount ?: ZERO)
+  val myOutput = outputs?.find { it.miniAddress == channel.my.address }
+  val balanceChange = channel.my.balance - (myOutput?.amount ?: ZERO)
 
   Column {
     Text("Request received to send ${balanceChange.toPlainString()} Minima over channel ${channel.id}")
