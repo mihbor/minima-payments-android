@@ -10,8 +10,6 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import ltd.mbor.minimak.*
@@ -21,6 +19,7 @@ import java.text.SimpleDateFormat
 val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
 var inited by mutableStateOf(false)
 val balances = mutableStateMapOf<String, Balance>()
+val tokens = mutableStateMapOf<String, Token>()
 var blockNumber by mutableStateOf(0)
 
 fun newTxId() = SecureRandom().nextInt(1_000_000_000)
@@ -32,6 +31,7 @@ suspend fun initMDS(uid: String, host: String, port: Int) {
       "inited" -> {
         if (MDS.logging) Log.i(TAG, "Connected to Minima.")
         balances.putAll(MDS.getBalances().associateBy { it.tokenId })
+        tokens.putAll(MDS.getTokens().associateBy { it.tokenId })
         blockNumber = MDS.getBlockNumber()
         createDB()
         channels.addAll(getChannels(status = "OPEN"))
@@ -52,6 +52,9 @@ suspend fun initMDS(uid: String, host: String, port: Int) {
         val newBalances = MDS.getBalances().associateBy { it.tokenId }
         balances.clear()
         balances.putAll(newBalances)
+        val newTokens = MDS.getTokens().associateBy { it.tokenId }
+        tokens.clear()
+        tokens.putAll(newTokens)
       }
       "NEWBLOCK" -> {
         blockNumber = msg.jsonObject["data"]!!.jsonObject["txpow"]!!.jsonObject["header"]!!.jsonObject["block"]!!.jsonPrimitive.content.toInt()
@@ -68,18 +71,5 @@ suspend fun initMDS(uid: String, host: String, port: Int) {
         }
       }
     }
-  }
-}
-
-suspend fun channelUpdateAck(updateTxText: String, settleTxText: String) {
-
-  MDS.importTx(newTxId(), updateTxText).also { updateTx ->
-    val settleTx = MDS.importTx(newTxId(), settleTxText)
-    val channel = getChannel(updateTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Output>(it) }.first().address)!!
-    val sequenceNumber = settleTx["state"]!!.jsonArray.map { json.decodeFromJsonElement<State>(it) }.find { it.port == 99 }?.data?.toInt()!!
-
-    val outputs = settleTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Coin>(it) }
-    val channelBalance = outputs.find { it.miniAddress == channel.my.address }!!.amount to outputs.find { it.miniAddress == channel.their.address }!!.amount
-    updateChannel(channel, channelBalance, sequenceNumber, updateTxText, settleTxText)
   }
 }

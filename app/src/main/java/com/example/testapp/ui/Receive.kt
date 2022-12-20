@@ -15,6 +15,7 @@ import com.google.zxing.common.BitMatrix
 import com.google.zxing.qrcode.QRCodeWriter
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import ltd.mbor.minimak.Balance
+import ltd.mbor.minimak.Token
 
 fun encodeAsBitmap(str: String): Bitmap {
   val writer = QRCodeWriter()
@@ -36,6 +37,7 @@ fun encodeAsBitmap(str: String): Bitmap {
 fun Receive(
   inited: Boolean,
   balances: Map<String, Balance>,
+  tokens: Map<String, Token>,
   address: String,
   setAddress: (String) -> Unit,
   tokenId: String,
@@ -49,7 +51,7 @@ fun Receive(
       bitmap = encodeAsBitmap("$address;${amount.toPlainString()};$tokenId").asImageBitmap()
     }
     OutlinedTextField(address, setAddress, enabled = true, modifier = Modifier.fillMaxWidth())
-    TokenSelect(tokenId, balances, true, setTokenId)
+    TokenSelect(tokenId, balances, tokens, true, setTokenId)
     Row{
       DecimalNumberField(amount, enabled = true, setValue = setAmount)
     }

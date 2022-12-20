@@ -21,11 +21,13 @@ import com.example.testapp.logic.newKeys
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
 import ltd.mbor.minimak.Balance
 import ltd.mbor.minimak.MDS
+import ltd.mbor.minimak.Token
 import ltd.mbor.minimak.getAddress
 
 @Composable
 fun RequestChannel(
   balances: Map<String, Balance>,
+  tokens: Map<String, Token>,
   activity: MainActivity?,
   setRequestSentOnChannel: (Channel) -> Unit
 ) {
@@ -56,7 +58,7 @@ fun RequestChannel(
     settlementTxStatus = ""
     bitmap = encodeAsBitmap(channelKey(myKeys, tokenId) + ";" + amount.toPlainString() + ";" + myAddress).asImageBitmap()
 
-    joinChannel(myKeys, tokenId, amount) { event, newChannel ->
+    joinChannel(myAddress, myKeys, tokenId, amount) { event, newChannel ->
       progressStep++
       when (event) {
         SIGS_RECEIVED -> {
@@ -100,7 +102,7 @@ fun RequestChannel(
     DecimalNumberField(amount, min = ZERO, enabled = !showQR) {
       it?.let { amount = it }
     }
-    TokenSelect(tokenId, balances, enabled = !showQR) {
+    TokenSelect(tokenId, balances, tokens, enabled = !showQR) {
       tokenId = it
     }
     if (!showQR) Button(

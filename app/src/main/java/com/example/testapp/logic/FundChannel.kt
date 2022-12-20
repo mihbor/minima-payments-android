@@ -8,9 +8,7 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
-import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import ltd.mbor.minimak.*
 import java.util.*
 
@@ -137,7 +135,7 @@ suspend fun Channel.commitFund(
   MDS.importTx(newTxId(), triggerTx)
   MDS.importTx(newTxId(), settlementTx)
   val fundingTxId = newTxId()
-  val theirBalance = json.decodeFromJsonElement<List<Coin>>(MDS.importTx(fundingTxId, fundingTx).jsonObject["outputs"]!!.jsonArray)
+  val theirBalance = MDS.importTx(fundingTxId, fundingTx).outputs
     .find { it.address == multisigScriptAddress && it.tokenId == tokenId }!!.tokenAmount - myAmount
   theirInputCoins.forEach { MDS.importCoin(it) }
   theirInputScripts.forEach { MDS.deployScript(it) }

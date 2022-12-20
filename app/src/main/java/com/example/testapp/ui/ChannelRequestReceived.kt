@@ -10,22 +10,19 @@ import com.example.testapp.MainActivity
 import com.example.testapp.logic.acceptRequest
 import com.example.testapp.scope
 import com.example.testapp.sendDataToService
+import com.example.testapp.ui.preview.fakeChannel
 import com.example.testapp.ui.theme.TestAppTheme
 import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.jsonArray
-import ltd.mbor.minimak.Coin
-import ltd.mbor.minimak.json
+import ltd.mbor.minimak.Transaction
 
 @Composable
-fun ChannelRequestReceived(channel: Channel, updateTx: Pair<Int, JsonObject>, settleTx: Pair<Int, JsonObject>, activity: MainActivity?, dismiss: () -> Unit) {
+fun ChannelRequestReceived(channel: Channel, updateTx: Pair<Int, Transaction>, settleTx: Pair<Int, Transaction>, activity: MainActivity?, dismiss: () -> Unit) {
 
   var accepting by remember { mutableStateOf(false) }
   var preparingResponse by remember { mutableStateOf(false) }
-  val outputs = settleTx.second["outputs"]?.jsonArray?.map { json.decodeFromJsonElement<Coin>(it) }
-  val myOutput = outputs?.find { it.miniAddress == channel.my.address }
+  val outputs = settleTx.second.outputs
+  val myOutput = outputs.find { it.miniAddress == channel.my.address }
   val balanceChange = channel.my.balance - (myOutput?.amount ?: ZERO)
 
   Column {
@@ -63,6 +60,8 @@ fun ChannelRequestReceived(channel: Channel, updateTx: Pair<Int, JsonObject>, se
 @Preview
 fun PreviewChannelRequest() {
   TestAppTheme {
-    ChannelRequestReceived(channel = fakeChannel, updateTx = 1 to JsonObject(emptyMap()), settleTx = 2 to JsonObject(emptyMap()), null) { }
+    ChannelRequestReceived(channel = fakeChannel, updateTx = 1 to Transaction.empty, settleTx = 2 to Transaction.empty, null) { }
   }
 }
+
+val Transaction.Companion.empty get() = Transaction(emptyList(), emptyList(), emptyList(), "")

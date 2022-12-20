@@ -22,10 +22,11 @@ import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.launch
 import ltd.mbor.minimak.Balance
+import ltd.mbor.minimak.Token
 import ltd.mbor.minimak.log
 
 @Composable
-fun FundChannel(balances: Map<String, Balance>, activity: MainActivity?, setRequestSentOnChannel: (Channel) -> Unit) {
+fun FundChannel(balances: Map<String, Balance>, tokens: Map<String, Token>, activity: MainActivity?, setRequestSentOnChannel: (Channel) -> Unit) {
 
   var myAmount by remember { mutableStateOf(ZERO) }
   var theirAmount by remember { mutableStateOf(ZERO) }
@@ -96,7 +97,7 @@ fun FundChannel(balances: Map<String, Balance>, activity: MainActivity?, setRequ
         DecimalNumberField(theirAmount, min = ZERO) {
           it?.let { theirAmount = it }
         }
-        TokenSelect(tokenId = tokenId, balances = balances) {
+        TokenSelect(tokenId = tokenId, balances = balances, tokens = tokens) {
           tokenId = it
         }
       }

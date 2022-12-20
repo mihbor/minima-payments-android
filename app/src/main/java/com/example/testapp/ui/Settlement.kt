@@ -12,6 +12,7 @@ import com.example.testapp.logic.completeSettlement
 import com.example.testapp.logic.postUpdate
 import com.example.testapp.logic.triggerSettlement
 import com.example.testapp.scope
+import com.example.testapp.ui.preview.fakeChannel
 import com.example.testapp.ui.theme.TestAppTheme
 import kotlinx.coroutines.launch
 import ltd.mbor.minimak.Coin

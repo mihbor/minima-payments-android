@@ -36,7 +36,7 @@ fun Send(
   if (inited) {
     val context = LocalContext.current
     OutlinedTextField(address, setAddress, enabled = true, modifier = Modifier.fillMaxWidth())
-    TokenSelect(tokenId, balances, true, setTokenId)
+    TokenSelect(tokenId, balances, enabled = true, setTokenId = setTokenId)
     Row{
       DecimalNumberField(amount, enabled = true, setValue = setAmount)
       var sending by remember { mutableStateOf(false) }

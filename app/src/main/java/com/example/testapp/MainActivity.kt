@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.example.testapp.logic.channelUpdateAck
 import com.example.testapp.logic.getChannel
 import com.example.testapp.logic.initFirebase
 import com.example.testapp.ui.ChannelRequestReceived
@@ -29,10 +30,10 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal.Companion.ZERO
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.jsonArray
-import ltd.mbor.minimak.*
+import ltd.mbor.minimak.MDS
+import ltd.mbor.minimak.Transaction
+import ltd.mbor.minimak.getAddress
+import ltd.mbor.minimak.importTx
 
 val READER_FLAGS = NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
 
@@ -49,8 +50,8 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
   var amount by mutableStateOf(ZERO)
   var requestReceivedOnChannel by mutableStateOf<Channel?>(null)
   var requestSentOnChannel by mutableStateOf<Channel?>(null)
-  var updateTx by mutableStateOf<Pair<Int, JsonObject>?>(null)
-  var settleTx by mutableStateOf<Pair<Int, JsonObject>?>(null)
+  var updateTx by mutableStateOf<Pair<Int, Transaction>?>(null)
+  var settleTx by mutableStateOf<Pair<Int, Transaction>?>(null)
 
   var cardReader: CardReader = CardReader(this)
 
@@ -103,6 +104,7 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
               uid = uid,
               setUid = this::initMDS,
               balances = balances,
+              tokens = tokens,
               address = address,
               setAddress = { address = it},
               amount = amount,
@@ -176,7 +178,7 @@ class MainActivity : ComponentActivity(), CardReader.DataCallback {
         updateTx = newTxId().let{
           it to MDS.importTx(it, updateTxText).also { updateTx ->
             settleTx = newTxId().let { it to MDS.importTx(it, settleTxText) }
-            requestReceivedOnChannel = getChannel(updateTx["outputs"]!!.jsonArray.map { json.decodeFromJsonElement<Coin>(it) }.first().address)
+            requestReceivedOnChannel = getChannel(updateTx.outputs.first().address)
           }
         }
       }
